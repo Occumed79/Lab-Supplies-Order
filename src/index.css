@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  @apply bg-background text-foreground;
+}
+
+/* Custom Scrollbar for Webkit */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: rgb(var(--color-muted-foreground) / 0.3);
+  @apply rounded-full;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(var(--color-muted-foreground) / 0.5);
+}
+
+/* Glassmorphism Utilities */
+.glass-panel {
+  @apply bg-[var(--glass-bg)] backdrop-blur-glass border border-[var(--glass-border)] shadow-glass;
+}
+.glass-panel-strong {
+  @apply bg-[var(--glass-bg-strong)] backdrop-blur-glass-strong border border-[var(--glass-border)] shadow-glass;
+}
+.glass-input {
+  @apply w-full h-12 px-4 rounded-xl backdrop-blur-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200 text-foreground placeholder-muted-foreground;
+  background-color: rgba(var(--color-surface-rgb), 0.5);
+}
+.glass-input.dark {
+  background-color: rgba(var(--color-surface-rgb), 0.3);
+}
+.glass-button {
+  @apply inline-flex items-center justify-center h-12 px-6 rounded-button font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95;
+}
+.glass-button-primary {
+  @apply glass-button bg-gradient-primary text-primary-foreground shadow-lg hover:shadow-luminous border border-white/20 dark:border-white/10;
+}
+.glass-button-secondary {
+  @apply glass-button backdrop-blur-sm border border-border hover:bg-surface text-foreground;
+  background-color: rgba(var(--color-surface-rgb), 0.5);
+}
+.glass-button-secondary.dark {
+  background-color: rgba(var(--color-surface-rgb), 0.3);
+}
+.glass-button-secondary:hover.dark {
+  background-color: rgba(var(--color-surface-rgb), 0.5);
+}
