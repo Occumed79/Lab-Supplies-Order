@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: lab-supplies-order
+    runtime: static
+    repo: https://github.com/Occumed79/Lab-Supplies-Order
+    branch: main
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: NPM_CONFIG_REGISTRY
+        value: https://registry.npmjs.org/
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
