@@ -9,6 +9,8 @@ const app = express();
 const port = process.env.PORT || 10000;
 const databaseUrl = process.env.DATABASE_URL;
 const frontendOrigin = process.env.FRONTEND_ORIGIN || '*';
+const adminEmail = process.env.ADMIN_EMAIL || '';
+const adminPassword = process.env.ADMIN_PASSWORD || '';
 
 if (!databaseUrl) {
   console.error('Missing DATABASE_URL');
@@ -43,6 +45,14 @@ async function initDb() {
   const productCount = await sql`SELECT count(*)::int AS count FROM products`;
   if ((productCount[0]?.count || 0) === 0) {
     await sql`INSERT INTO products (product_name, product_code, description, category, price, stock_quantity, is_available) VALUES ('Chain of Custody Forms', 'COC-FORM', 'Standard collection forms.', 'Forms', 0, 500, true), ('Specimen Collection Cups', 'SPEC-CUP', 'Sterile specimen collection cups.', 'Collection Supplies', 0, 250, true), ('Tamper Evident Bags', 'TE-BAG', 'Secure transport bags.', 'Collection Supplies', 0, 400, true), ('Clinical Shipping Pak', 'SHIP-PAK', 'Shipping pak for supplies or documents.', 'Shipping', 0, 200, true)`;
+  }
+
+  if (adminEmail && adminPassword) {
+    const existing = await sql`SELECT id FROM users WHERE lower(email) = lower(${adminEmail}) LIMIT 1`;
+    if (existing.length === 0) {
+      const hash = await bcrypt.hash(adminPassword, 12);
+      await sql`INSERT INTO users (email, password_hash, provider, role) VALUES (${adminEmail}, ${hash}, 'email', 'admin')`;
+    }
   }
 }
 
