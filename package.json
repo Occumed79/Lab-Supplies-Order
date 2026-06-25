@@ -8,7 +8,7 @@
     "node": "22.x"
   },
   "scripts": {
-    "dev": "vite",
+    "dev": "node scripts/configure-api-base.mjs && vite",
     "build": "node scripts/configure-api-base.mjs && vite build",
     "preview": "vite preview"
   },
