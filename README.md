@@ -52,12 +52,18 @@ ADMIN_EMAIL=<admin login email>
 ADMIN_PASSWORD=<admin login password>
 ```
 
-Optional, only needed if clinic invitation emails should send through Resend:
+Domain email / SMTP settings for sending clinic invitation emails:
 
 ```txt
-RESEND_API_KEY=<Resend API key>
-MAIL_FROM=<verified Resend sender, e.g. Occu-Med Lab Supplies <no-reply@yourdomain.com>>
+SMTP_HOST=<your domain email SMTP host>
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=<your domain mailbox username, e.g. supplies@yourdomain.com>
+SMTP_PASS=<your domain mailbox password or app password>
+MAIL_FROM=Occu-Med Lab Supplies <supplies@yourdomain.com>
 ```
+
+Use `SMTP_PORT=465` and `SMTP_SECURE=true` only if your email host requires SSL-on-connect.
 
 ### Static frontend service: `lab-supplies-order`
 
@@ -78,4 +84,5 @@ Both commands previously passed successfully before the Render/API wiring update
 
 - The frontend startup script patches the production API base URL before `npm run dev` and `npm run build`.
 - The same startup script also patches the login flow so the frontend respects the role returned by the API instead of trusting the selected login tab.
-- If `RESEND_API_KEY` and `MAIL_FROM` are not configured, invitation records can still be created, but invitation email delivery is not active.
+- The backend mail helper uses generic SMTP settings, so it can send from a domain mailbox instead of being tied to Resend.
+- If the SMTP settings are not configured, invitation records can still be created, but invitation email delivery is not active.
