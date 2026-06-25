@@ -1,5 +1,34 @@
 services:
   - type: web
+    name: lab-supplies-order-api
+    runtime: node
+    repo: https://github.com/Occumed79/Lab-Supplies-Order
+    branch: main
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: NPM_CONFIG_REGISTRY
+        value: https://registry.npmjs.org/
+      - key: DATABASE_URL
+        sync: false
+      - key: FRONTEND_ORIGIN
+        value: https://lab-supplies-order.onrender.com
+      - key: PUBLIC_FRONTEND_URL
+        value: https://lab-supplies-order.onrender.com
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+
+  - type: web
     name: lab-supplies-order
     runtime: static
     repo: https://github.com/Occumed79/Lab-Supplies-Order
@@ -11,6 +40,8 @@ services:
         value: 22
       - key: NPM_CONFIG_REGISTRY
         value: https://registry.npmjs.org/
+      - key: VITE_API_BASE_URL
+        value: https://lab-supplies-order-api.onrender.com
     routes:
       - type: rewrite
         source: /*
