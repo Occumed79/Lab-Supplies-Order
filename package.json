@@ -1,15 +1,19 @@
 {
   "name": "occu-med-lab-supply-portal",
   "private": true,
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "module",
   "packageManager": "npm@10.9.2",
   "engines": {
     "node": "22.x"
   },
   "scripts": {
-    "dev": "node scripts/configure-api-base.mjs && vite",
-    "build": "node scripts/configure-api-base.mjs && vite build",
+    "dev": "vite",
+    "dev:api": "npm --prefix backend run dev",
+    "build": "vite build",
+    "build:render": "npm --prefix backend install && vite build",
+    "start": "npm --prefix backend start",
+    "typecheck": "tsc --noEmit",
     "preview": "vite preview"
   },
   "dependencies": {
