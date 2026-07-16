@@ -1,130 +1,594 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { createContext, useContext, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 
-type Role = 'admin' | 'clinic';
-type User = { id: string; email: string; role: Role };
-type Clinic = { id: string; clinic_name: string; contact_name?: string; email?: string; login_email?: string; phone?: string; address?: string; city?: string; state?: string; zip_code?: string; account_status?: string; last_order_date?: string | null; order_count?: number };
-type Product = { id: string; product_name: string; product_code: string; description?: string; category: string; unit_label: string };
-type OrderItem = { product_id: string; product_name: string; product_code: string; category?: string; unit_label?: string; quantity: number };
-type Order = { id: string; clinic_id: string; clinic_name?: string; order_number: string; order_status: string; requested_by?: string; needed_by?: string | null; tracking_number?: string | null; special_instructions?: string; order_items: OrderItem[]; created_at: string };
-type Invitation = { id: string; clinic_email: string; clinic_name: string; invitation_status: string; sent_at: string; invite_url?: string };
+type Role = 'admin' | 'clinic_user';
+type User = {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  active: boolean;
+  clinic_id: string | null;
+  clinic_name?: string | null;
+  last_login_at?: string | null;
+  created_at?: string;
+};
+type Clinic = {
+  id: string;
+  clinic_name: string;
+  contact_name?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip_code?: string;
+  account_status: string;
+  last_order_date?: string | null;
+  user_count?: number;
+  order_count?: number;
+};
+type Product = {
+  id: string;
+  product_name: string;
+  product_code: string;
+  description?: string;
+  category: string;
+  unit_label: string;
+};
+type OrderItem = {
+  product_id: string;
+  product_name: string;
+  product_code: string;
+  category?: string;
+  unit_label?: string;
+  quantity: number;
+};
+type Order = {
+  id: string;
+  clinic_id: string;
+  clinic_name?: string;
+  submitted_by_name?: string;
+  order_number: string;
+  order_status: string;
+  requested_by?: string;
+  needed_by?: string | null;
+  tracking_number?: string | null;
+  special_instructions?: string;
+  order_items: OrderItem[];
+  created_at: string;
+};
 type Session = { token: string; user: User; clinic: Clinic | null };
+type AdminView = 'dashboard' | 'orders' | 'clinics' | 'users';
 
 const API_BASE = String(import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? '/api' : 'https://lab-supplies-order-api.onrender.com')).replace(/\/$/, '');
-const STORAGE_KEY = 'occu_med_lab_supply_session';
+const STORAGE_KEY = 'occu_med_lab_portal_session';
 
-async function request<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
+async function api<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(options.headers || {}) },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {}),
+    },
   });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error || 'The request could not be completed.');
-  return payload as T;
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body.error || 'The request could not be completed.');
+  return body as T;
 }
 
-const AuthContext = createContext<{ session: Session | null; setSession: (session: Session | null) => void; logout: () => void } | null>(null);
-function useAuth() { const value = useContext(AuthContext); if (!value) throw new Error('Auth context is unavailable.'); return value; }
-function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [session, setSessionState] = useState<Session | null>(() => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'); } catch { return null; } });
-  const setSession = (value: Session | null) => { setSessionState(value); if (value) localStorage.setItem(STORAGE_KEY, JSON.stringify(value)); else localStorage.removeItem(STORAGE_KEY); };
+const AuthContext = createContext<{
+  session: Session | null;
+  setSession: (session: Session | null) => void;
+  logout: () => void;
+} | null>(null);
+
+function useAuth() {
+  const value = useContext(AuthContext);
+  if (!value) throw new Error('Authentication context is unavailable.');
+  return value;
+}
+
+function AuthProvider({ children }: { children: ReactNode }) {
+  const [session, setSessionState] = useState<Session | null>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') as Session | null;
+    } catch {
+      return null;
+    }
+  });
+  const setSession = (next: Session | null) => {
+    setSessionState(next);
+    if (next) localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    else localStorage.removeItem(STORAGE_KEY);
+  };
   return <AuthContext.Provider value={{ session, setSession, logout: () => setSession(null) }}>{children}</AuthContext.Provider>;
 }
 
-function Brand() {
-  return <div className="flex items-center gap-3"><div className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-white/20 bg-white/10 shadow-luminous backdrop-blur-xl"><span className="absolute inset-1 rounded-xl border border-cyan-200/25" /><span className="relative text-lg font-black tracking-tight text-white">OM</span></div><div><div className="text-sm font-black tracking-[0.2em] text-white">OCCU-MED</div><div className="text-xs text-cyan-100/70">Lab Supply Portal</div></div></div>;
+const inputClass = 'w-full rounded-xl border border-slate-200/90 bg-white/80 px-3.5 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#6f9fbd] focus:ring-4 focus:ring-[#8bb7d2]/15';
+const darkInputClass = 'w-full rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3 text-white outline-none transition placeholder:text-white/35 focus:border-cyan-300/60 focus:ring-4 focus:ring-cyan-300/10';
+const primaryButton = 'inline-flex items-center justify-center rounded-xl bg-[#173b5c] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0e2e4a] disabled:cursor-not-allowed disabled:opacity-50';
+const secondaryButton = 'inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50';
+const dangerButton = 'inline-flex items-center justify-center rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50';
+
+function OccuMedLogo({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className={`flex items-center ${compact ? 'gap-2.5' : 'gap-3'}`}>
+      <div className={`${compact ? 'h-10 w-10' : 'h-12 w-12'} flex items-center justify-center rounded-2xl border border-[#9ebed2] bg-gradient-to-br from-[#dcecf5] to-white shadow-[0_0_18px_rgba(67,112,158,0.25)]`}>
+        <span className="text-sm font-black tracking-tight text-[#173b5c]">OM</span>
+      </div>
+      <div>
+        <div className={`${compact ? 'text-sm' : 'text-base'} font-black tracking-[0.18em] text-[#173b5c]`}>OCCU-MED</div>
+        <div className="text-xs font-medium text-slate-500">Lab Supply Portal</div>
+      </div>
+    </div>
+  );
 }
-function Shell({ children }: { children: React.ReactNode }) {
-  return <div className="relative min-h-screen overflow-hidden bg-[#020b1f] text-white"><div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(24,190,255,0.18),transparent_32%),radial-gradient(circle_at_85%_75%,rgba(54,98,255,0.18),transparent_34%),linear-gradient(145deg,#020817_0%,#061b3f_52%,#020b1f_100%)]" /><div className="pointer-events-none fixed -left-24 top-24 h-80 w-80 animate-pulse-slow rounded-full bg-cyan-400/10 blur-3xl" /><div className="pointer-events-none fixed -right-20 bottom-16 h-96 w-96 animate-pulse-slow rounded-full bg-blue-600/10 blur-3xl" /><div className="relative z-10">{children}</div></div>;
+
+function GlassPanel({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return <section className={`rounded-3xl border border-white/80 bg-white/62 shadow-[0_18px_55px_rgba(31,78,121,0.10)] backdrop-blur-2xl ${className}`}>{children}</section>;
 }
-function Panel({ children, className = '' }: { children: React.ReactNode; className?: string }) { return <section className={`rounded-3xl border border-white/10 bg-white/[0.065] shadow-[0_18px_70px_rgba(0,20,70,0.35),inset_0_1px_0_rgba(255,255,255,0.09)] backdrop-blur-2xl ${className}`}>{children}</section>; }
-function ErrorBanner({ message }: { message?: string }) { return message ? <div className="rounded-2xl border border-red-300/25 bg-red-400/10 px-4 py-3 text-sm text-red-100">{message}</div> : null; }
-function SuccessBanner({ message }: { message?: string }) { return message ? <div className="rounded-2xl border border-emerald-300/25 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">{message}</div> : null; }
-const inputClass = 'w-full rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3 text-white outline-none transition placeholder:text-white/35 focus:border-cyan-300/60 focus:bg-white/[0.10] focus:ring-4 focus:ring-cyan-300/10';
-const buttonPrimary = 'inline-flex items-center justify-center rounded-2xl border border-cyan-100/20 bg-gradient-to-r from-blue-600 to-cyan-500 px-5 py-3 font-semibold text-white shadow-[0_0_28px_rgba(34,211,238,0.24)] transition hover:-translate-y-0.5 hover:shadow-[0_0_40px_rgba(34,211,238,0.34)] disabled:cursor-not-allowed disabled:opacity-50';
-const buttonSecondary = 'inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/[0.07] px-5 py-3 font-semibold text-white transition hover:bg-white/[0.12] disabled:cursor-not-allowed disabled:opacity-50';
+
+function DarkPanel({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return <section className={`rounded-3xl border border-white/10 bg-white/[0.065] shadow-[0_18px_70px_rgba(0,20,70,0.35)] backdrop-blur-2xl ${className}`}>{children}</section>;
+}
+
+function ErrorMessage({ message }: { message: string }) {
+  return message ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{message}</div> : null;
+}
+
+function SuccessMessage({ message }: { message: string }) {
+  return message ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</div> : null;
+}
+
+function DarkError({ message }: { message: string }) {
+  return message ? <div className="rounded-2xl border border-red-300/25 bg-red-400/10 px-4 py-3 text-sm text-red-100">{message}</div> : null;
+}
+
+function Protected({ role, children }: { role: Role; children: ReactNode }) {
+  const { session } = useAuth();
+  if (!session) return <Navigate to="/login" replace />;
+  if (session.user.role !== role) return <Navigate to={session.user.role === 'admin' ? '/admin' : '/clinic'} replace />;
+  return <>{children}</>;
+}
 
 function LoginPage() {
-  const { session, setSession } = useAuth(); const navigate = useNavigate();
-  const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const [error, setError] = useState(''); const [loading, setLoading] = useState(false);
+  const { session, setSession } = useAuth();
+  const navigate = useNavigate();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
   if (session) return <Navigate to={session.user.role === 'admin' ? '/admin' : '/clinic'} replace />;
-  const submit = async (event: React.FormEvent) => { event.preventDefault(); setLoading(true); setError(''); try { const result = await request<Session>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }); setSession(result); navigate(result.user.role === 'admin' ? '/admin' : '/clinic', { replace: true }); } catch (err) { setError(err instanceof Error ? err.message : 'Sign in failed.'); } finally { setLoading(false); } };
-  return <Shell><main className="flex min-h-screen items-center justify-center p-4 md:p-8"><div className="grid w-full max-w-6xl gap-8 lg:grid-cols-[1.08fr_0.92fr]"><div className="hidden flex-col justify-between rounded-[2.25rem] border border-cyan-200/10 bg-gradient-to-br from-blue-600/20 via-white/[0.05] to-cyan-400/10 p-10 shadow-[0_0_100px_rgba(0,146,255,0.16)] backdrop-blur-3xl lg:flex"><Brand /><div className="max-w-xl py-16"><p className="mb-4 text-sm font-bold uppercase tracking-[0.24em] text-cyan-200">Clinic fulfillment workspace</p><h1 className="text-5xl font-black leading-[1.05] tracking-tight">Request, review, ship, and track lab supplies in one place.</h1><p className="mt-6 max-w-lg text-lg leading-8 text-blue-100/70">A direct Occu-Med workflow for clinic supply requests—without purchase pricing, payment steps, or disconnected email chains.</p></div><div className="grid grid-cols-3 gap-3 text-sm text-blue-100/70"><div className="rounded-2xl border border-white/10 bg-white/[0.05] p-4">Clinic requests</div><div className="rounded-2xl border border-white/10 bg-white/[0.05] p-4">Admin fulfillment</div><div className="rounded-2xl border border-white/10 bg-white/[0.05] p-4">Shipment tracking</div></div></div><Panel className="mx-auto w-full max-w-xl p-6 md:p-10"><div className="mb-10 lg:hidden"><Brand /></div><p className="text-sm font-bold uppercase tracking-[0.22em] text-cyan-200">Secure portal access</p><h2 className="mt-3 text-3xl font-black tracking-tight">Welcome back</h2><p className="mt-2 text-white/55">Use your clinic or Occu-Med administrator account.</p><form onSubmit={submit} className="mt-8 space-y-5"><ErrorBanner message={error} /><label className="block"><span className="mb-2 block text-sm font-medium text-white/75">Email address</span><input className={inputClass} type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="email" /></label><label className="block"><span className="mb-2 block text-sm font-medium text-white/75">Password</span><input className={inputClass} type="password" value={password} onChange={(event) => setPassword(event.target.value)} required autoComplete="current-password" /></label><button className={`${buttonPrimary} w-full`} disabled={loading}>{loading ? 'Signing in…' : 'Sign in'}</button></form><div className="mt-8 border-t border-white/10 pt-6 text-center text-sm text-white/55">New clinic? <button onClick={() => navigate('/register')} className="font-semibold text-cyan-200 hover:text-cyan-100">Create an account</button></div></Panel></div></main></Shell>;
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const result = await api<Session>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+      setSession(result);
+      navigate(result.user.role === 'admin' ? '/admin' : '/clinic', { replace: true });
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Login failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#edf4f8] p-4">
+      <div className="pointer-events-none absolute left-[8%] top-[12%] h-96 w-96 rounded-full bg-sky-200/45 blur-[120px]" />
+      <div className="pointer-events-none absolute bottom-[8%] right-[10%] h-96 w-96 rounded-full bg-blue-100/70 blur-[120px]" />
+      <GlassPanel className="relative z-10 w-full max-w-md p-8">
+        <div className="mb-8 flex flex-col items-center text-center">
+          <OccuMedLogo />
+          <h1 className="mt-7 text-2xl font-bold tracking-tight text-slate-800">Lab Supply Portal</h1>
+          <p className="mt-2 text-sm text-slate-500">One login for Occu-Med administrators and clinic users.</p>
+        </div>
+        <form onSubmit={submit} className="space-y-4">
+          <ErrorMessage message={error} />
+          <label className="block">
+            <span className="mb-2 block text-sm font-medium text-slate-700">Email</span>
+            <input className={inputClass} type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="email" placeholder="name@organization.com" />
+          </label>
+          <label className="block">
+            <span className="mb-2 block text-sm font-medium text-slate-700">Password</span>
+            <input className={inputClass} type="password" value={password} onChange={(event) => setPassword(event.target.value)} required autoComplete="current-password" placeholder="••••••••" />
+          </label>
+          <button className={`${primaryButton} mt-3 w-full`} disabled={loading}>{loading ? 'Opening portal…' : 'Open Portal'}</button>
+        </form>
+        <p className="mt-6 text-center text-xs text-slate-400">Clinic credentials are created and managed by Occu-Med.</p>
+      </GlassPanel>
+    </div>
+  );
 }
 
-function RegisterPage() {
-  const { setSession } = useAuth(); const navigate = useNavigate(); const location = useLocation(); const token = new URLSearchParams(location.search).get('token') || '';
-  const [form, setForm] = useState({ clinic_name: '', contact_name: '', email: '', phone: '', address: '', city: '', state: '', zip_code: '', password: '', confirm: '' });
-  const [error, setError] = useState(''); const [inviteNote, setInviteNote] = useState(''); const [loading, setLoading] = useState(false);
-  useEffect(() => { if (!token) return; request<{ clinic_name: string; clinic_email: string; invitation_message?: string }>(`/invitations/${token}`).then((invite) => { setForm((current) => ({ ...current, clinic_name: invite.clinic_name, email: invite.clinic_email })); setInviteNote(invite.invitation_message || 'Your clinic was invited by Occu-Med.'); }).catch((err) => setError(err instanceof Error ? err.message : 'Invitation could not be validated.')); }, [token]);
-  const update = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
-  const submit = async (event: React.FormEvent) => { event.preventDefault(); setError(''); if (form.password !== form.confirm) return setError('Passwords do not match.'); if (form.password.length < 8) return setError('Use a password with at least 8 characters.'); setLoading(true); try { const result = await request<Session>('/auth/register', { method: 'POST', body: JSON.stringify({ ...form, invitation_token: token }) }); setSession(result); navigate('/clinic', { replace: true }); } catch (err) { setError(err instanceof Error ? err.message : 'Registration failed.'); } finally { setLoading(false); } };
-  const fields = [['clinic_name', 'Clinic name', 'text'], ['contact_name', 'Primary contact', 'text'], ['email', 'Email address', 'email'], ['phone', 'Phone number', 'tel'], ['address', 'Street address', 'text'], ['city', 'City', 'text'], ['state', 'State / Province', 'text'], ['zip_code', 'ZIP / Postal code', 'text'], ['password', 'Password', 'password'], ['confirm', 'Confirm password', 'password']] as const;
-  return <Shell><main className="mx-auto min-h-screen max-w-5xl p-4 py-10 md:p-8 md:py-14"><div className="mb-8 flex items-center justify-between gap-4"><Brand /><button onClick={() => navigate('/login')} className={buttonSecondary}>Back to sign in</button></div><Panel className="p-6 md:p-10"><div className="max-w-2xl"><p className="text-sm font-bold uppercase tracking-[0.22em] text-cyan-200">Clinic registration</p><h1 className="mt-3 text-3xl font-black tracking-tight md:text-4xl">Create your lab supply account</h1><p className="mt-3 text-white/55">This profile controls where Occu-Med sends the clinic’s requested supplies.</p></div>{inviteNote && <div className="mt-6 rounded-2xl border border-cyan-200/20 bg-cyan-300/10 px-4 py-3 text-sm text-cyan-50">{inviteNote}</div>}<form onSubmit={submit} className="mt-8 grid gap-5 md:grid-cols-2"><div className="md:col-span-2"><ErrorBanner message={error} /></div>{fields.map(([key, label, type]) => <label key={key} className={key === 'address' ? 'md:col-span-2' : ''}><span className="mb-2 block text-sm font-medium text-white/75">{label}</span><input className={inputClass} type={type} value={form[key]} onChange={(event) => update(key, event.target.value)} required={!['contact_name', 'phone'].includes(key)} disabled={Boolean(token && (key === 'clinic_name' || key === 'email'))} /></label>)}<div className="md:col-span-2 flex justify-end pt-3"><button className={`${buttonPrimary} w-full md:w-auto`} disabled={loading}>{loading ? 'Creating account…' : 'Create clinic account'}</button></div></form></Panel></main></Shell>;
+const adminNav: Array<{ id: AdminView; label: string; mark: string }> = [
+  { id: 'dashboard', label: 'Dashboard', mark: 'DB' },
+  { id: 'orders', label: 'Supply Requests', mark: 'SR' },
+  { id: 'clinics', label: 'Clinics', mark: 'CL' },
+  { id: 'users', label: 'Clinic Users', mark: 'CU' },
+];
+
+function AdminLayout({ view, setView, children }: { view: AdminView; setView: (view: AdminView) => void; children: ReactNode }) {
+  const { session, logout } = useAuth();
+  const navigate = useNavigate();
+  const signOut = () => { logout(); navigate('/login', { replace: true }); };
+  return (
+    <div className="min-h-screen bg-[#edf4f8] text-slate-800 md:flex">
+      <aside className="border-b border-slate-200/80 bg-white/45 p-4 backdrop-blur-2xl md:fixed md:inset-y-0 md:left-0 md:w-64 md:border-b-0 md:border-r">
+        <div className="flex items-center justify-between md:block">
+          <div className="px-2 py-2 md:pb-5"><OccuMedLogo /></div>
+          <button onClick={signOut} className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 md:hidden">Sign out</button>
+        </div>
+        <p className="hidden px-3 pb-3 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400 md:block">Lab Administration</p>
+        <nav className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 md:flex md:flex-col md:gap-1">
+          {adminNav.map((item) => (
+            <button key={item.id} onClick={() => setView(item.id)} className={`flex items-center gap-3 rounded-xl border px-3 py-3 text-left text-sm font-medium transition ${view === item.id ? 'border-[#9ebed2] bg-[#d8e7f1] text-[#173b5c] shadow-sm' : 'border-transparent text-slate-600 hover:bg-white/75 hover:text-[#173b5c]'}`}>
+              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[10px] font-black ${view === item.id ? 'bg-white/70 text-[#173b5c]' : 'bg-slate-100 text-slate-500'}`}>{item.mark}</span>
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </nav>
+        <div className="mt-6 hidden border-t border-slate-200/80 pt-4 md:block">
+          <div className="px-3 py-2">
+            <p className="text-sm font-semibold text-slate-800">{session?.user.name}</p>
+            <p className="break-all text-xs text-slate-500">{session?.user.email}</p>
+          </div>
+          <button onClick={signOut} className="mt-2 w-full rounded-xl px-3 py-3 text-left text-sm font-semibold text-red-600 transition hover:bg-red-50">Sign Out</button>
+        </div>
+      </aside>
+      <main className="relative min-h-screen flex-1 overflow-hidden p-4 md:ml-64 md:p-8">
+        <div className="pointer-events-none absolute right-0 top-0 h-[500px] w-[500px] rounded-full bg-sky-200/25 blur-[150px]" />
+        <div className="pointer-events-none absolute bottom-0 left-0 h-[500px] w-[500px] rounded-full bg-blue-100/40 blur-[150px]" />
+        <div className="relative z-10 mx-auto max-w-7xl">{children}</div>
+      </main>
+    </div>
+  );
 }
 
-function Protected({ role, children }: { role: Role; children: React.ReactNode }) { const { session } = useAuth(); if (!session) return <Navigate to="/login" replace />; if (session.user.role !== role) return <Navigate to={session.user.role === 'admin' ? '/admin' : '/clinic'} replace />; return <>{children}</>; }
-function Header({ title, subtitle }: { title: string; subtitle: string }) { const { session, logout } = useAuth(); return <header className="sticky top-0 z-30 border-b border-white/10 bg-[#020b1f]/70 backdrop-blur-2xl"><div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 md:px-8"><Brand /><div className="hidden flex-1 px-8 md:block"><div className="text-sm font-semibold text-white">{title}</div><div className="text-xs text-white/45">{subtitle}</div></div><div className="flex items-center gap-3"><div className="hidden text-right sm:block"><div className="text-xs font-semibold text-white/80">{session?.user.email}</div><div className="text-[11px] uppercase tracking-wider text-cyan-200/65">{session?.user.role}</div></div><button onClick={logout} className="rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/[0.12]">Sign out</button></div></div></header>; }
-function NavTabs({ items, active, onChange }: { items: string[]; active: string; onChange: (value: string) => void }) { return <div className="flex gap-2 overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.045] p-2">{items.map((item) => <button key={item} onClick={() => onChange(item)} className={`whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-semibold transition ${active === item ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-[0_0_24px_rgba(34,211,238,0.18)]' : 'text-white/55 hover:bg-white/[0.07] hover:text-white'}`}>{item}</button>)}</div>; }
-function StatusBadge({ status }: { status: string }) { const className = status === 'Delivered' ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100' : status === 'Cancelled' ? 'border-red-300/25 bg-red-400/10 text-red-100' : status === 'Shipped' ? 'border-cyan-300/25 bg-cyan-400/10 text-cyan-100' : 'border-amber-300/25 bg-amber-400/10 text-amber-100'; return <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${className}`}>{status}</span>; }
-function Metric({ label, value, note }: { label: string; value: string | number; note?: string }) { return <Panel className="p-5"><div className="text-sm font-medium text-white/50">{label}</div><div className="mt-2 text-3xl font-black tracking-tight">{value}</div>{note && <div className="mt-2 text-xs text-cyan-100/50">{note}</div>}</Panel>; }
-
-function ClinicPortal() {
-  const { session, setSession } = useAuth(); const token = session!.token;
-  const [tab, setTab] = useState('Overview'); const [orders, setOrders] = useState<Order[]>([]); const [products, setProducts] = useState<Product[]>([]); const [clinic, setClinic] = useState<Clinic>(session!.clinic || { id: '', clinic_name: '' }); const [loading, setLoading] = useState(true); const [error, setError] = useState('');
-  const load = async () => { setLoading(true); setError(''); try { const [orderData, productData, clinicData] = await Promise.all([request<Order[]>('/orders', {}, token), request<Product[]>('/products', {}, token), request<Clinic>('/clinic/profile', {}, token)]); setOrders(orderData); setProducts(productData); setClinic(clinicData); setSession({ ...session!, clinic: clinicData }); } catch (err) { setError(err instanceof Error ? err.message : 'Portal data could not be loaded.'); } finally { setLoading(false); } };
-  useEffect(() => { void load(); }, []);
-  const pending = orders.filter((order) => !['Delivered', 'Cancelled'].includes(order.order_status)).length; const shipped = orders.filter((order) => order.order_status === 'Shipped').length;
-  return <Shell><Header title={clinic.clinic_name || 'Clinic Portal'} subtitle="Lab supply requests and shipment tracking" /><main className="mx-auto max-w-7xl space-y-6 px-4 py-6 md:px-8 md:py-8"><NavTabs items={['Overview', 'New Request', 'Clinic Profile']} active={tab} onChange={setTab} /><ErrorBanner message={error} />{tab === 'Overview' && <><div className="grid gap-4 sm:grid-cols-3"><Metric label="Total requests" value={orders.length} note="All clinic requests" /><Metric label="In fulfillment" value={pending} note="Pending through shipped" /><Metric label="Currently shipped" value={shipped} note="Tracking available below" /></div><Panel className="overflow-hidden"><div className="flex flex-col gap-3 border-b border-white/10 p-5 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-xl font-black">Supply request history</h2><p className="mt-1 text-sm text-white/45">Live status from Occu-Med fulfillment.</p></div><button onClick={() => setTab('New Request')} className={buttonPrimary}>Create request</button></div><OrderList orders={orders} loading={loading} /></Panel></>}{tab === 'New Request' && <NewRequest products={products} clinic={clinic} token={token} onCreated={async () => { await load(); setTab('Overview'); }} />}{tab === 'Clinic Profile' && <ClinicProfile clinic={clinic} token={token} onSaved={(updated) => { setClinic(updated); setSession({ ...session!, clinic: updated }); }} />}</main></Shell>;
+function MetricCard({ label, value, note }: { label: string; value: number; note: string }) {
+  return <GlassPanel className="p-5"><p className="text-sm font-medium text-slate-500">{label}</p><p className="mt-2 text-3xl font-black tracking-tight text-[#173b5c]">{value}</p><p className="mt-2 text-xs text-slate-400">{note}</p></GlassPanel>;
 }
 
-function OrderList({ orders, loading }: { orders: Order[]; loading: boolean }) {
-  if (loading) return <div className="p-8 text-center text-white/45">Loading requests…</div>;
-  if (!orders.length) return <div className="p-10 text-center text-white/45">No supply requests have been submitted yet.</div>;
-  return <div className="divide-y divide-white/10">{orders.map((order) => <article key={order.id} className="p-5 transition hover:bg-white/[0.035]"><div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div><div className="flex flex-wrap items-center gap-3"><span className="font-mono text-sm font-bold text-cyan-100">{order.order_number}</span><StatusBadge status={order.order_status} /></div><div className="mt-2 text-sm text-white/50">Submitted {new Date(order.created_at).toLocaleDateString()} {order.needed_by ? `• Needed by ${new Date(`${order.needed_by}T12:00:00`).toLocaleDateString()}` : ''}</div>{order.clinic_name && <div className="mt-1 text-sm font-semibold text-white/75">{order.clinic_name}</div>}</div>{order.tracking_number && <div className="rounded-2xl border border-cyan-200/15 bg-cyan-300/[0.07] px-4 py-3 text-sm"><span className="text-white/45">Tracking</span><div className="mt-1 font-mono font-bold text-cyan-100">{order.tracking_number}</div></div>}</div><div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{order.order_items.map((item) => <div key={`${order.id}-${item.product_id}`} className="rounded-xl border border-white/8 bg-white/[0.035] px-3 py-2 text-sm text-white/65"><span className="font-semibold text-white/85">{item.quantity} {item.unit_label || 'unit(s)'}</span> · {item.product_name}</div>)}</div>{order.special_instructions && <div className="mt-4 text-sm text-white/45"><span className="font-semibold text-white/65">Instructions:</span> {order.special_instructions}</div>}</article>)}</div>;
-}
-
-function NewRequest({ products, clinic, token, onCreated }: { products: Product[]; clinic: Clinic; token: string; onCreated: () => void }) {
-  const [quantities, setQuantities] = useState<Record<string, number>>({}); const [requestedBy, setRequestedBy] = useState(clinic.contact_name || ''); const [neededBy, setNeededBy] = useState(''); const [instructions, setInstructions] = useState(''); const [category, setCategory] = useState('All'); const [search, setSearch] = useState(''); const [error, setError] = useState(''); const [success, setSuccess] = useState(''); const [loading, setLoading] = useState(false);
-  const categories = useMemo(() => ['All', ...Array.from(new Set(products.map((product) => product.category)))], [products]);
-  const visible = products.filter((product) => (category === 'All' || product.category === category) && `${product.product_name} ${product.product_code}`.toLowerCase().includes(search.toLowerCase()));
-  const selectedCount = Object.values(quantities).filter((quantity) => quantity > 0).length;
-  const submit = async (event: React.FormEvent) => { event.preventDefault(); setError(''); setSuccess(''); const items = Object.entries(quantities).filter(([, quantity]) => quantity > 0).map(([product_id, quantity]) => ({ product_id, quantity })); if (!items.length) return setError('Select at least one supply item and quantity.'); setLoading(true); try { const order = await request<Order>('/orders', { method: 'POST', body: JSON.stringify({ items, requested_by: requestedBy, needed_by: neededBy || null, special_instructions: instructions }) }, token); setSuccess(`Request ${order.order_number} was submitted successfully.`); setQuantities({}); setInstructions(''); setTimeout(onCreated, 700); } catch (err) { setError(err instanceof Error ? err.message : 'The request could not be submitted.'); } finally { setLoading(false); } };
-  return <form onSubmit={submit} className="grid gap-6 xl:grid-cols-[1fr_340px]"><Panel className="overflow-hidden"><div className="border-b border-white/10 p-5"><h2 className="text-xl font-black">Select lab supplies</h2><p className="mt-1 text-sm text-white/45">Quantities are requested in the unit shown for each item.</p><div className="mt-5 grid gap-3 md:grid-cols-[1fr_220px]"><input className={inputClass} value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search supplies or product code" /><select className={inputClass} value={category} onChange={(event) => setCategory(event.target.value)}>{categories.map((item) => <option key={item} value={item} className="bg-slate-950">{item}</option>)}</select></div></div><div className="grid gap-4 p-5 md:grid-cols-2">{visible.map((product) => <div key={product.id} className={`rounded-2xl border p-4 transition ${quantities[product.id] > 0 ? 'border-cyan-300/40 bg-cyan-300/[0.08] shadow-[0_0_28px_rgba(34,211,238,0.08)]' : 'border-white/10 bg-white/[0.035]'}`}><div className="flex items-start justify-between gap-4"><div><div className="text-xs font-bold uppercase tracking-wider text-cyan-200/70">{product.category}</div><h3 className="mt-2 font-bold text-white">{product.product_name}</h3><p className="mt-1 text-xs font-mono text-white/35">{product.product_code}</p></div><div className="rounded-xl border border-white/10 bg-white/[0.05] px-2.5 py-1 text-xs font-semibold text-white/60">{product.unit_label}</div></div><p className="mt-3 min-h-10 text-sm leading-5 text-white/45">{product.description}</p><div className="mt-4 flex items-center gap-3"><button type="button" onClick={() => setQuantities((current) => ({ ...current, [product.id]: Math.max(0, (current[product.id] || 0) - 1) }))} className="h-10 w-10 rounded-xl border border-white/10 bg-white/[0.06] text-lg font-bold hover:bg-white/[0.12]">−</button><input type="number" min="0" max="999" value={quantities[product.id] || 0} onChange={(event) => setQuantities((current) => ({ ...current, [product.id]: Math.max(0, Number(event.target.value) || 0) }))} className="h-10 w-20 rounded-xl border border-white/10 bg-white/[0.07] text-center font-bold outline-none focus:border-cyan-300/50" /><button type="button" onClick={() => setQuantities((current) => ({ ...current, [product.id]: (current[product.id] || 0) + 1 }))} className="h-10 w-10 rounded-xl border border-white/10 bg-white/[0.06] text-lg font-bold hover:bg-white/[0.12]">+</button></div></div>)}</div></Panel><Panel className="h-fit p-5 xl:sticky xl:top-28"><h2 className="text-xl font-black">Request details</h2><div className="mt-5 space-y-4"><ErrorBanner message={error} /><SuccessBanner message={success} /><div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm"><div className="text-white/45">Shipping to</div><div className="mt-1 font-bold">{clinic.clinic_name}</div><div className="mt-1 text-white/55">{clinic.address}<br />{clinic.city}, {clinic.state} {clinic.zip_code}</div></div><label className="block"><span className="mb-2 block text-sm text-white/65">Requested by</span><input className={inputClass} value={requestedBy} onChange={(event) => setRequestedBy(event.target.value)} required /></label><label className="block"><span className="mb-2 block text-sm text-white/65">Needed by</span><input className={inputClass} type="date" value={neededBy} onChange={(event) => setNeededBy(event.target.value)} /></label><label className="block"><span className="mb-2 block text-sm text-white/65">Special instructions</span><textarea className={`${inputClass} min-h-28 resize-y`} value={instructions} onChange={(event) => setInstructions(event.target.value)} placeholder="Collection type, kit preference, delivery notes, or urgency" /></label><div className="rounded-2xl border border-cyan-200/15 bg-cyan-300/[0.06] p-4 text-sm text-cyan-50"><span className="font-bold">{selectedCount}</span> supply item{selectedCount === 1 ? '' : 's'} selected</div><button className={`${buttonPrimary} w-full`} disabled={loading || selectedCount === 0}>{loading ? 'Submitting request…' : 'Submit to Occu-Med'}</button></div></Panel></form>;
-}
-
-function ClinicProfile({ clinic, token, onSaved }: { clinic: Clinic; token: string; onSaved: (clinic: Clinic) => void }) {
-  const [form, setForm] = useState(clinic); const [error, setError] = useState(''); const [success, setSuccess] = useState(''); const [loading, setLoading] = useState(false); useEffect(() => setForm(clinic), [clinic]);
-  const submit = async (event: React.FormEvent) => { event.preventDefault(); setError(''); setSuccess(''); setLoading(true); try { const updated = await request<Clinic>('/clinic/profile', { method: 'PUT', body: JSON.stringify(form) }, token); onSaved(updated); setSuccess('Clinic profile and shipping address updated.'); } catch (err) { setError(err instanceof Error ? err.message : 'Profile update failed.'); } finally { setLoading(false); } };
-  const fields: Array<[keyof Clinic, string]> = [['clinic_name', 'Clinic name'], ['contact_name', 'Primary contact'], ['phone', 'Phone number'], ['address', 'Street address'], ['city', 'City'], ['state', 'State / Province'], ['zip_code', 'ZIP / Postal code']];
-  return <Panel className="p-6 md:p-8"><div className="max-w-2xl"><h2 className="text-2xl font-black">Clinic profile</h2><p className="mt-2 text-white/45">Occu-Med uses this address for supply fulfillment.</p></div><form onSubmit={submit} className="mt-8 grid max-w-4xl gap-5 md:grid-cols-2"><div className="md:col-span-2"><ErrorBanner message={error} /><SuccessBanner message={success} /></div>{fields.map(([key, label]) => <label key={key} className={key === 'address' ? 'md:col-span-2' : ''}><span className="mb-2 block text-sm text-white/65">{label}</span><input className={inputClass} value={String(form[key] || '')} onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))} required={['clinic_name', 'address', 'city', 'state', 'zip_code'].includes(key)} /></label>)}<div className="md:col-span-2 flex justify-end"><button className={buttonPrimary} disabled={loading}>{loading ? 'Saving…' : 'Save profile'}</button></div></form></Panel>;
+function StatusBadge({ status }: { status: string }) {
+  const classes = status === 'Delivered' || status === 'Active'
+    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    : status === 'Cancelled' || status === 'Inactive'
+      ? 'border-red-200 bg-red-50 text-red-700'
+      : status === 'Shipped'
+        ? 'border-sky-200 bg-sky-50 text-sky-700'
+        : 'border-amber-200 bg-amber-50 text-amber-700';
+  return <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${classes}`}>{status}</span>;
 }
 
 function AdminPortal() {
-  const { session } = useAuth(); const token = session!.token; const [tab, setTab] = useState('Orders'); const [orders, setOrders] = useState<Order[]>([]); const [clinics, setClinics] = useState<Clinic[]>([]); const [invitations, setInvitations] = useState<Invitation[]>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState('');
-  const load = async () => { setLoading(true); setError(''); try { const [orderData, clinicData, invitationData] = await Promise.all([request<Order[]>('/orders', {}, token), request<Clinic[]>('/admin/clinics', {}, token), request<Invitation[]>('/admin/invitations', {}, token)]); setOrders(orderData); setClinics(clinicData); setInvitations(invitationData); } catch (err) { setError(err instanceof Error ? err.message : 'Admin data could not be loaded.'); } finally { setLoading(false); } };
+  const { session } = useAuth();
+  const token = session!.token;
+  const [view, setView] = useState<AdminView>('dashboard');
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [clinics, setClinics] = useState<Clinic[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const load = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const [orderData, clinicData, userData] = await Promise.all([
+        api<Order[]>('/orders', {}, token),
+        api<Clinic[]>('/admin/clinics', {}, token),
+        api<User[]>('/admin/users', {}, token),
+      ]);
+      setOrders(orderData);
+      setClinics(clinicData);
+      setUsers(userData);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Administration data could not be loaded.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => { void load(); }, []);
-  return <Shell><Header title="Fulfillment Administration" subtitle="Review, process, ship, and track clinic supply requests" /><main className="mx-auto max-w-7xl space-y-6 px-4 py-6 md:px-8 md:py-8"><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><Metric label="Registered clinics" value={clinics.length} /><Metric label="Open requests" value={orders.filter((order) => !['Delivered', 'Cancelled'].includes(order.order_status)).length} /><Metric label="Awaiting review" value={orders.filter((order) => order.order_status === 'Pending').length} /><Metric label="Shipped" value={orders.filter((order) => order.order_status === 'Shipped').length} /></div><NavTabs items={['Orders', 'Clinics', 'Invitations']} active={tab} onChange={setTab} /><ErrorBanner message={error} />{tab === 'Orders' && <AdminOrders orders={orders} loading={loading} token={token} onUpdated={load} />}{tab === 'Clinics' && <AdminClinics clinics={clinics} loading={loading} />}{tab === 'Invitations' && <AdminInvitations invitations={invitations} token={token} onCreated={load} />}</main></Shell>;
+
+  return (
+    <AdminLayout view={view} setView={setView}>
+      <ErrorMessage message={error} />
+      {view === 'dashboard' && <AdminDashboard orders={orders} clinics={clinics} users={users} loading={loading} goTo={setView} />}
+      {view === 'orders' && <AdminOrders orders={orders} loading={loading} token={token} reload={load} />}
+      {view === 'clinics' && <AdminClinics clinics={clinics} loading={loading} token={token} reload={load} />}
+      {view === 'users' && <ClinicUserManager users={users} clinics={clinics} loading={loading} token={token} reload={load} />}
+    </AdminLayout>
+  );
 }
 
-function AdminOrders({ orders, loading, token, onUpdated }: { orders: Order[]; loading: boolean; token: string; onUpdated: () => void }) {
-  const [query, setQuery] = useState(''); const [status, setStatus] = useState('All'); const filtered = orders.filter((order) => (status === 'All' || order.order_status === status) && `${order.order_number} ${order.clinic_name || ''}`.toLowerCase().includes(query.toLowerCase()));
-  return <Panel className="overflow-hidden"><div className="grid gap-3 border-b border-white/10 p-5 md:grid-cols-[1fr_220px]"><input className={inputClass} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search order number or clinic" /><select className={inputClass} value={status} onChange={(event) => setStatus(event.target.value)}>{['All', 'Pending', 'Approved', 'Processing', 'Shipped', 'Delivered', 'Cancelled'].map((item) => <option className="bg-slate-950" key={item}>{item}</option>)}</select></div>{loading ? <div className="p-8 text-center text-white/45">Loading orders…</div> : !filtered.length ? <div className="p-10 text-center text-white/45">No requests match the current filters.</div> : <div className="divide-y divide-white/10">{filtered.map((order) => <AdminOrderRow key={order.id} order={order} token={token} onUpdated={onUpdated} />)}</div>}</Panel>;
-}
-function AdminOrderRow({ order, token, onUpdated }: { order: Order; token: string; onUpdated: () => void }) {
-  const [status, setStatus] = useState(order.order_status); const [tracking, setTracking] = useState(order.tracking_number || ''); const [error, setError] = useState(''); const [loading, setLoading] = useState(false);
-  const save = async () => { setLoading(true); setError(''); try { await request(`/admin/orders/${order.id}`, { method: 'PATCH', body: JSON.stringify({ order_status: status, tracking_number: tracking }) }, token); onUpdated(); } catch (err) { setError(err instanceof Error ? err.message : 'Order update failed.'); } finally { setLoading(false); } };
-  return <article className="p-5"><div className="grid gap-5 xl:grid-cols-[1fr_360px]"><div><div className="flex flex-wrap items-center gap-3"><span className="font-mono text-sm font-bold text-cyan-100">{order.order_number}</span><StatusBadge status={order.order_status} /></div><h3 className="mt-3 text-lg font-black">{order.clinic_name || 'Unknown clinic'}</h3><div className="mt-1 text-sm text-white/45">Submitted {new Date(order.created_at).toLocaleString()} {order.requested_by ? `by ${order.requested_by}` : ''}</div><div className="mt-4 grid gap-2 sm:grid-cols-2">{order.order_items.map((item) => <div key={item.product_id} className="rounded-xl border border-white/8 bg-white/[0.035] px-3 py-2 text-sm text-white/65"><span className="font-bold text-white/85">{item.quantity} {item.unit_label || 'unit(s)'}</span> · {item.product_name}</div>)}</div>{order.special_instructions && <div className="mt-4 rounded-xl border border-white/8 bg-white/[0.03] p-3 text-sm text-white/55"><span className="font-semibold text-white/75">Instructions:</span> {order.special_instructions}</div>}</div><div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4"><ErrorBanner message={error} /><label className="block"><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-white/45">Status</span><select className={inputClass} value={status} onChange={(event) => setStatus(event.target.value)}>{['Pending', 'Approved', 'Processing', 'Shipped', 'Delivered', 'Cancelled'].map((item) => <option className="bg-slate-950" key={item}>{item}</option>)}</select></label><label className="mt-4 block"><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-white/45">Tracking number</span><input className={inputClass} value={tracking} onChange={(event) => setTracking(event.target.value)} placeholder="Add when shipped" /></label><button onClick={save} className={`${buttonPrimary} mt-4 w-full`} disabled={loading}>{loading ? 'Saving…' : 'Update request'}</button></div></div></article>;
-}
-function AdminClinics({ clinics, loading }: { clinics: Clinic[]; loading: boolean }) {
-  const [query, setQuery] = useState(''); const filtered = clinics.filter((clinic) => `${clinic.clinic_name} ${clinic.city || ''} ${clinic.state || ''} ${clinic.login_email || ''}`.toLowerCase().includes(query.toLowerCase()));
-  return <Panel className="overflow-hidden"><div className="border-b border-white/10 p-5"><input className={inputClass} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search clinics, locations, or email" /></div>{loading ? <div className="p-8 text-center text-white/45">Loading clinics…</div> : <div className="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-3">{filtered.map((clinic) => <div key={clinic.id} className="rounded-2xl border border-white/10 bg-white/[0.035] p-5"><div className="flex items-start justify-between gap-3"><h3 className="font-black">{clinic.clinic_name}</h3><span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-2 py-1 text-xs font-semibold text-emerald-100">{clinic.account_status || 'Active'}</span></div><div className="mt-3 space-y-1 text-sm text-white/50"><div>{clinic.contact_name || 'No contact listed'}</div><div>{clinic.login_email || clinic.email}</div><div>{clinic.phone || 'No phone listed'}</div><div>{clinic.address}<br />{clinic.city}, {clinic.state} {clinic.zip_code}</div></div><div className="mt-4 border-t border-white/10 pt-3 text-xs font-semibold text-cyan-100/70">{clinic.order_count || 0} supply request{clinic.order_count === 1 ? '' : 's'}</div></div>)}</div>}</Panel>;
-}
-function AdminInvitations({ invitations, token, onCreated }: { invitations: Invitation[]; token: string; onCreated: () => void }) {
-  const [form, setForm] = useState({ clinic_name: '', clinic_email: '', invitation_message: 'Occu-Med has invited your clinic to use our Lab Supply Portal for supply requests and shipment tracking.' }); const [error, setError] = useState(''); const [success, setSuccess] = useState(''); const [loading, setLoading] = useState(false);
-  const submit = async (event: React.FormEvent) => { event.preventDefault(); setError(''); setSuccess(''); setLoading(true); try { const result = await request<Invitation & { email_status?: string; invite_url?: string }>('/admin/invitations', { method: 'POST', body: JSON.stringify(form) }, token); setSuccess(result.email_status === 'sent' ? 'Invitation email sent.' : `Invitation created. Email delivery is not configured; use this link: ${result.invite_url}`); setForm((current) => ({ ...current, clinic_name: '', clinic_email: '' })); onCreated(); } catch (err) { setError(err instanceof Error ? err.message : 'Invitation could not be created.'); } finally { setLoading(false); } };
-  return <div className="grid gap-6 xl:grid-cols-[420px_1fr]"><Panel className="h-fit p-6"><h2 className="text-xl font-black">Invite a clinic</h2><p className="mt-2 text-sm text-white/45">The registration link is restricted to the invited email address.</p><form onSubmit={submit} className="mt-6 space-y-4"><ErrorBanner message={error} /><SuccessBanner message={success} /><label className="block"><span className="mb-2 block text-sm text-white/65">Clinic name</span><input className={inputClass} value={form.clinic_name} onChange={(event) => setForm((current) => ({ ...current, clinic_name: event.target.value }))} required /></label><label className="block"><span className="mb-2 block text-sm text-white/65">Clinic email</span><input className={inputClass} type="email" value={form.clinic_email} onChange={(event) => setForm((current) => ({ ...current, clinic_email: event.target.value }))} required /></label><label className="block"><span className="mb-2 block text-sm text-white/65">Invitation message</span><textarea className={`${inputClass} min-h-32 resize-y`} value={form.invitation_message} onChange={(event) => setForm((current) => ({ ...current, invitation_message: event.target.value }))} /></label><button className={`${buttonPrimary} w-full`} disabled={loading}>{loading ? 'Sending…' : 'Send invitation'}</button></form></Panel><Panel className="overflow-hidden"><div className="border-b border-white/10 p-5"><h2 className="text-xl font-black">Invitation history</h2></div>{!invitations.length ? <div className="p-10 text-center text-white/45">No clinic invitations have been created.</div> : <div className="divide-y divide-white/10">{invitations.map((invitation) => <div key={invitation.id} className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between"><div><div className="font-bold">{invitation.clinic_name}</div><div className="mt-1 text-sm text-white/45">{invitation.clinic_email} · {new Date(invitation.sent_at).toLocaleString()}</div></div><StatusBadge status={invitation.invitation_status} /></div>)}</div>}</Panel></div>;
+function AdminDashboard({ orders, clinics, users, loading, goTo }: { orders: Order[]; clinics: Clinic[]; users: User[]; loading: boolean; goTo: (view: AdminView) => void }) {
+  const open = orders.filter((order) => !['Delivered', 'Cancelled'].includes(order.order_status)).length;
+  const pending = orders.filter((order) => order.order_status === 'Pending').length;
+  return (
+    <div className="space-y-6">
+      <div><h1 className="text-3xl font-bold tracking-tight text-slate-800">Lab Supply Administration</h1><p className="mt-1 text-sm text-slate-500">Manage clinics, credentials, supply requests, and fulfillment.</p></div>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="Clinics" value={clinics.length} note="Organization accounts" />
+        <MetricCard label="Clinic users" value={users.length} note="Admin-generated logins" />
+        <MetricCard label="Open requests" value={open} note="Pending through shipped" />
+        <MetricCard label="Awaiting review" value={pending} note="New clinic submissions" />
+      </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <GlassPanel className="p-6"><h2 className="text-lg font-bold text-slate-800">Administration shortcuts</h2><div className="mt-5 grid gap-3 sm:grid-cols-2"><button className={primaryButton} onClick={() => goTo('clinics')}>Add or manage clinics</button><button className={secondaryButton} onClick={() => goTo('users')}>Generate clinic login</button><button className={secondaryButton} onClick={() => goTo('orders')}>Review supply requests</button><button className={secondaryButton} onClick={() => goTo('users')}>Reset user password</button></div></GlassPanel>
+        <GlassPanel className="overflow-hidden"><div className="border-b border-slate-200/70 p-5"><h2 className="text-lg font-bold text-slate-800">Recent requests</h2></div>{loading ? <div className="p-8 text-center text-sm text-slate-400">Loading…</div> : orders.length === 0 ? <div className="p-8 text-center text-sm text-slate-400">No requests yet.</div> : <div className="divide-y divide-slate-200/70">{orders.slice(0, 5).map((order) => <div key={order.id} className="flex items-center justify-between gap-4 p-4"><div><p className="font-mono text-xs font-bold text-[#173b5c]">{order.order_number}</p><p className="mt-1 text-sm font-semibold text-slate-700">{order.clinic_name}</p></div><StatusBadge status={order.order_status} /></div>)}</div>}</GlassPanel>
+      </div>
+    </div>
+  );
 }
 
-function App() { return <AuthProvider><Routes><Route path="/login" element={<LoginPage />} /><Route path="/register" element={<RegisterPage />} /><Route path="/clinic" element={<Protected role="clinic"><ClinicPortal /></Protected>} /><Route path="/admin" element={<Protected role="admin"><AdminPortal /></Protected>} /><Route path="*" element={<Navigate to="/login" replace />} /></Routes></AuthProvider>; }
+function AdminOrders({ orders, loading, token, reload }: { orders: Order[]; loading: boolean; token: string; reload: () => Promise<void> }) {
+  const [query, setQuery] = useState('');
+  const [status, setStatus] = useState('All');
+  const filtered = orders.filter((order) => (status === 'All' || order.order_status === status) && `${order.order_number} ${order.clinic_name || ''}`.toLowerCase().includes(query.toLowerCase()));
+  return (
+    <div className="space-y-6">
+      <div><h1 className="text-3xl font-bold tracking-tight">Supply Requests</h1><p className="mt-1 text-sm text-slate-500">Review, process, ship, and close clinic requests.</p></div>
+      <GlassPanel className="overflow-hidden">
+        <div className="grid gap-3 border-b border-slate-200/70 p-5 md:grid-cols-[1fr_220px]"><input className={inputClass} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search request number or clinic" /><select className={inputClass} value={status} onChange={(event) => setStatus(event.target.value)}>{['All', 'Pending', 'Approved', 'Processing', 'Shipped', 'Delivered', 'Cancelled'].map((item) => <option key={item}>{item}</option>)}</select></div>
+        {loading ? <div className="p-10 text-center text-sm text-slate-400">Loading requests…</div> : filtered.length === 0 ? <div className="p-10 text-center text-sm text-slate-400">No requests match the current filters.</div> : <div className="divide-y divide-slate-200/70">{filtered.map((order) => <AdminOrderRow key={order.id} order={order} token={token} reload={reload} />)}</div>}
+      </GlassPanel>
+    </div>
+  );
+}
+
+function AdminOrderRow({ order, token, reload }: { order: Order; token: string; reload: () => Promise<void> }) {
+  const [status, setStatus] = useState(order.order_status);
+  const [tracking, setTracking] = useState(order.tracking_number || '');
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      await api(`/admin/orders/${order.id}`, { method: 'PATCH', body: JSON.stringify({ order_status: status, tracking_number: tracking }) }, token);
+      await reload();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Request update failed.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <article className="p-5">
+      <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
+        <div><div className="flex flex-wrap items-center gap-3"><span className="font-mono text-sm font-bold text-[#173b5c]">{order.order_number}</span><StatusBadge status={order.order_status} /></div><h3 className="mt-3 text-lg font-bold text-slate-800">{order.clinic_name || 'Unknown clinic'}</h3><p className="mt-1 text-sm text-slate-500">Submitted {new Date(order.created_at).toLocaleString()} {order.submitted_by_name ? `by ${order.submitted_by_name}` : ''}</p><div className="mt-4 grid gap-2 sm:grid-cols-2">{order.order_items.map((item) => <div key={item.product_id} className="rounded-xl border border-slate-200 bg-white/65 px-3 py-2 text-sm text-slate-600"><span className="font-bold text-slate-800">{item.quantity} {item.unit_label || 'unit(s)'}</span> · {item.product_name}</div>)}</div>{order.special_instructions && <div className="mt-4 rounded-xl border border-slate-200 bg-white/55 p-3 text-sm text-slate-600"><span className="font-semibold text-slate-800">Instructions:</span> {order.special_instructions}</div>}</div>
+        <div className="rounded-2xl border border-slate-200 bg-white/55 p-4"><ErrorMessage message={error} /><label className="block"><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-400">Status</span><select className={inputClass} value={status} onChange={(event) => setStatus(event.target.value)}>{['Pending', 'Approved', 'Processing', 'Shipped', 'Delivered', 'Cancelled'].map((item) => <option key={item}>{item}</option>)}</select></label><label className="mt-4 block"><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-400">Tracking number</span><input className={inputClass} value={tracking} onChange={(event) => setTracking(event.target.value)} placeholder="Add when shipped" /></label><button onClick={save} className={`${primaryButton} mt-4 w-full`} disabled={saving}>{saving ? 'Saving…' : 'Update request'}</button></div>
+      </div>
+    </article>
+  );
+}
+
+function AdminClinics({ clinics, loading, token, reload }: { clinics: Clinic[]; loading: boolean; token: string; reload: () => Promise<void> }) {
+  const empty = { clinic_name: '', contact_name: '', email: '', phone: '', address: '', city: '', state: '', zip_code: '' };
+  const [query, setQuery] = useState('');
+  const [form, setForm] = useState(empty);
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const filtered = clinics.filter((clinic) => `${clinic.clinic_name} ${clinic.city || ''} ${clinic.state || ''} ${clinic.email || ''}`.toLowerCase().includes(query.toLowerCase()));
+  const createClinic = async (event: FormEvent) => {
+    event.preventDefault();
+    setError('');
+    setSuccess('');
+    setCreating(true);
+    try {
+      await api('/admin/clinics', { method: 'POST', body: JSON.stringify(form) }, token);
+      setForm(empty);
+      setSuccess('Clinic account created. You can now add users to it.');
+      await reload();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Clinic could not be created.');
+    } finally {
+      setCreating(false);
+    }
+  };
+  return (
+    <div className="space-y-6">
+      <div><h1 className="text-3xl font-bold tracking-tight">Clinics</h1><p className="mt-1 text-sm text-slate-500">Create clinic accounts before assigning one or more users.</p></div>
+      <div className="grid gap-6 xl:grid-cols-[390px_1fr]">
+        <GlassPanel className="h-fit p-6"><h2 className="text-lg font-bold">Create clinic</h2><p className="mt-1 text-sm text-slate-500">This record controls the shared shipping address and clinic identity.</p><form onSubmit={createClinic} className="mt-5 space-y-3"><ErrorMessage message={error} /><SuccessMessage message={success} />{Object.entries(form).map(([key, value]) => <label key={key} className="block"><span className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-400">{key.replaceAll('_', ' ')}</span><input className={inputClass} value={value} onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))} required={['clinic_name', 'address', 'city', 'state', 'zip_code'].includes(key)} /></label>)}<button className={`${primaryButton} w-full`} disabled={creating}>{creating ? 'Creating…' : 'Create clinic account'}</button></form></GlassPanel>
+        <GlassPanel className="overflow-hidden"><div className="border-b border-slate-200/70 p-5"><input className={inputClass} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search clinics, location, or email" /></div>{loading ? <div className="p-10 text-center text-sm text-slate-400">Loading clinics…</div> : <div className="grid gap-4 p-5 md:grid-cols-2">{filtered.map((clinic) => <ClinicCard key={clinic.id} clinic={clinic} token={token} reload={reload} />)}</div>}</GlassPanel>
+      </div>
+    </div>
+  );
+}
+
+function ClinicCard({ clinic, token, reload }: { clinic: Clinic; token: string; reload: () => Promise<void> }) {
+  const [saving, setSaving] = useState(false);
+  const toggle = async () => {
+    setSaving(true);
+    try {
+      await api(`/admin/clinics/${clinic.id}`, { method: 'PATCH', body: JSON.stringify({ ...clinic, account_status: clinic.account_status === 'Active' ? 'Inactive' : 'Active' }) }, token);
+      await reload();
+    } finally {
+      setSaving(false);
+    }
+  };
+  return <div className="rounded-2xl border border-slate-200 bg-white/62 p-5"><div className="flex items-start justify-between gap-3"><h3 className="font-bold text-slate-800">{clinic.clinic_name}</h3><StatusBadge status={clinic.account_status} /></div><div className="mt-3 space-y-1 text-sm text-slate-500"><p>{clinic.contact_name || 'No contact listed'}</p><p>{clinic.email || 'No email listed'}</p><p>{clinic.phone || 'No phone listed'}</p><p>{clinic.address}<br />{clinic.city}, {clinic.state} {clinic.zip_code}</p></div><div className="mt-4 flex items-center justify-between border-t border-slate-200 pt-3 text-xs font-semibold text-slate-500"><span>{clinic.user_count || 0} user{clinic.user_count === 1 ? '' : 's'} · {clinic.order_count || 0} request{clinic.order_count === 1 ? '' : 's'}</span><button onClick={toggle} disabled={saving} className="text-[#173b5c] hover:underline">{saving ? 'Saving…' : clinic.account_status === 'Active' ? 'Deactivate' : 'Activate'}</button></div></div>;
+}
+
+function generatePassword() {
+  const groups = ['ABCDEFGHJKLMNPQRSTUVWXYZ', 'abcdefghijkmnopqrstuvwxyz', '23456789', '!@#$%&*'];
+  const all = groups.join('');
+  const values = new Uint32Array(16);
+  crypto.getRandomValues(values);
+  const characters = groups.map((group, index) => group[values[index] % group.length]);
+  for (let index = groups.length; index < values.length; index += 1) characters.push(all[values[index] % all.length]);
+  for (let index = characters.length - 1; index > 0; index -= 1) {
+    const swapIndex = values[index] % (index + 1);
+    [characters[index], characters[swapIndex]] = [characters[swapIndex], characters[index]];
+  }
+  return characters.join('');
+}
+
+type CredentialHandoff = { name: string; email: string; password: string; clinic: string };
+
+function ClinicUserManager({ users, clinics, loading, token, reload }: { users: User[]; clinics: Clinic[]; loading: boolean; token: string; reload: () => Promise<void> }) {
+  const [createOpen, setCreateOpen] = useState(false);
+  const [resetUser, setResetUser] = useState<User | null>(null);
+  const [handoff, setHandoff] = useState<CredentialHandoff | null>(null);
+  const [resetHandoff, setResetHandoff] = useState<CredentialHandoff | null>(null);
+  const [resetPassword, setResetPassword] = useState('');
+  const [form, setForm] = useState({ name: '', email: '', clinic_id: '', password: '' });
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const resetCreate = () => { setForm({ name: '', email: '', clinic_id: '', password: '' }); setHandoff(null); setError(''); };
+  const createUser = async () => {
+    setError('');
+    if (!form.name.trim() || !form.email.trim() || !form.clinic_id || form.password.length < 8) return setError('Name, email, clinic, and an 8-character password are required.');
+    setSaving(true);
+    try {
+      const created = await api<User>('/admin/users', { method: 'POST', body: JSON.stringify(form) }, token);
+      setHandoff({ name: created.name, email: created.email, password: form.password, clinic: created.clinic_name || 'Clinic' });
+      await reload();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Clinic user could not be created.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  const updateUser = async (user: User, data: Record<string, unknown>) => {
+    await api(`/admin/users/${user.id}`, { method: 'PATCH', body: JSON.stringify(data) }, token);
+    await reload();
+  };
+  const deleteUser = async (user: User) => {
+    if (!window.confirm(`Delete ${user.name}?`)) return;
+    await api(`/admin/users/${user.id}`, { method: 'DELETE' }, token);
+    await reload();
+  };
+  const resetPasswordForUser = async () => {
+    if (!resetUser || resetPassword.length < 8) return setError('Password must be at least 8 characters.');
+    setSaving(true);
+    setError('');
+    try {
+      await updateUser(resetUser, { password: resetPassword });
+      setResetHandoff({ name: resetUser.name, email: resetUser.email, password: resetPassword, clinic: resetUser.clinic_name || 'Clinic' });
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Password reset failed.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  const copyCredentials = async (credentials: CredentialHandoff) => {
+    await navigator.clipboard.writeText(`Occu-Med Lab Supply Portal\nPortal: ${window.location.origin}\nClinic: ${credentials.clinic}\nUsername: ${credentials.email}\nTemporary password: ${credentials.password}`);
+  };
+  const emailCredentials = (credentials: CredentialHandoff) => {
+    const subject = encodeURIComponent('Your Occu-Med Lab Supply Portal credentials');
+    const body = encodeURIComponent(`Hello ${credentials.name},\n\nYour Occu-Med Lab Supply Portal access has been created.\n\nPortal: ${window.location.origin}\nClinic: ${credentials.clinic}\nUsername: ${credentials.email}\nTemporary password: ${credentials.password}\n\nPlease store these credentials securely.`);
+    window.location.href = `mailto:${credentials.email}?subject=${subject}&body=${body}`;
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><h1 className="text-3xl font-bold tracking-tight">Clinic User Management</h1><p className="mt-1 text-sm text-slate-500">Create credentials, assign users to clinics, reset passwords, and control access.</p></div><button onClick={() => { resetCreate(); setCreateOpen(true); }} className={primaryButton}>Create clinic login</button></div>
+      <GlassPanel className="overflow-hidden"><div className="overflow-x-auto"><table className="w-full min-w-[850px] text-left"><thead className="bg-white/45 text-xs uppercase tracking-wider text-slate-400"><tr><th className="px-5 py-4">User</th><th className="px-5 py-4">Clinic</th><th className="px-5 py-4">Status</th><th className="px-5 py-4">Last login</th><th className="px-5 py-4 text-right">Actions</th></tr></thead><tbody className="divide-y divide-slate-200/70">{loading ? <tr><td colSpan={5} className="px-5 py-10 text-center text-sm text-slate-400">Loading clinic users…</td></tr> : users.length === 0 ? <tr><td colSpan={5} className="px-5 py-10 text-center text-sm text-slate-400">No clinic users have been created.</td></tr> : users.map((user) => <tr key={user.id}><td className="px-5 py-4"><div className="font-semibold text-slate-800">{user.name}</div><div className="text-xs text-slate-500">{user.email}</div></td><td className="px-5 py-4 text-sm text-slate-600">{user.clinic_name || 'Unassigned'}</td><td className="px-5 py-4"><button onClick={() => void updateUser(user, { active: !user.active })} className={`relative h-7 w-12 rounded-full transition ${user.active ? 'bg-[#4f88aa]' : 'bg-slate-300'}`}><span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${user.active ? 'left-6' : 'left-1'}`} /></button></td><td className="px-5 py-4 text-sm text-slate-500">{user.last_login_at ? new Date(user.last_login_at).toLocaleString() : 'Never'}</td><td className="px-5 py-4"><div className="flex justify-end gap-2"><button className={secondaryButton} onClick={() => { setError(''); setResetPassword(''); setResetHandoff(null); setResetUser(user); }}>Reset password</button><button className={dangerButton} onClick={() => void deleteUser(user)}>Delete</button></div></td></tr>)}</tbody></table></div></GlassPanel>
+      {createOpen && <Modal title="Create clinic login" description="Generate credentials and attach this user to an existing clinic." onClose={() => { setCreateOpen(false); resetCreate(); }}>{handoff ? <CredentialPanel credentials={handoff} copy={() => void copyCredentials(handoff)} email={() => emailCredentials(handoff)} done={() => { setCreateOpen(false); resetCreate(); }} /> : <div className="space-y-4"><ErrorMessage message={error} /><label className="block"><span className="mb-2 block text-sm font-medium text-slate-700">Full name</span><input className={inputClass} value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} /></label><label className="block"><span className="mb-2 block text-sm font-medium text-slate-700">Email / username</span><input className={inputClass} type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} /></label><label className="block"><span className="mb-2 block text-sm font-medium text-slate-700">Clinic</span><select className={inputClass} value={form.clinic_id} onChange={(event) => setForm((current) => ({ ...current, clinic_id: event.target.value }))}><option value="">Select clinic</option>{clinics.filter((clinic) => clinic.account_status === 'Active').map((clinic) => <option key={clinic.id} value={clinic.id}>{clinic.clinic_name}</option>)}</select></label><PasswordField value={form.password} onChange={(password) => setForm((current) => ({ ...current, password }))} /><button className={`${primaryButton} w-full`} onClick={() => void createUser()} disabled={saving}>{saving ? 'Creating account…' : 'Create account and prepare credentials'}</button></div>}</Modal>}
+      {resetUser && <Modal title={`Set password for ${resetUser.name}`} description="The previous password cannot be viewed. Setting a new one replaces it immediately." onClose={() => { setResetUser(null); setResetPassword(''); setResetHandoff(null); setError(''); }}>{resetHandoff ? <CredentialPanel credentials={resetHandoff} copy={() => void copyCredentials(resetHandoff)} email={() => emailCredentials(resetHandoff)} done={() => { setResetUser(null); setResetPassword(''); setResetHandoff(null); }} /> : <div className="space-y-4"><ErrorMessage message={error} /><PasswordField value={resetPassword} onChange={setResetPassword} label="New password" /><button className={`${primaryButton} w-full`} onClick={() => void resetPasswordForUser()} disabled={saving}>{saving ? 'Saving…' : 'Save new password'}</button></div>}</Modal>}
+    </div>
+  );
+}
+
+function Modal({ title, description, onClose, children }: { title: string; description: string; onClose: () => void; children: ReactNode }) {
+  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/25 p-4 backdrop-blur-sm"><div className="w-full max-w-xl rounded-3xl border border-white/90 bg-[#f7fbfd]/95 p-6 shadow-[0_30px_100px_rgba(23,59,92,0.25)]"><div className="flex items-start justify-between gap-4"><div><h2 className="text-xl font-bold text-slate-800">{title}</h2><p className="mt-1 text-sm text-slate-500">{description}</p></div><button onClick={onClose} className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-lg text-slate-500 hover:text-slate-800">×</button></div><div className="mt-6">{children}</div></div></div>;
+}
+
+function PasswordField({ value, onChange, label = 'Password' }: { value: string; onChange: (value: string) => void; label?: string }) {
+  return <label className="block"><span className="mb-2 block text-sm font-medium text-slate-700">{label}</span><div className="flex gap-2"><input className={inputClass} type="text" value={value} onChange={(event) => onChange(event.target.value)} placeholder="Enter or generate a password" /><button type="button" className={secondaryButton} onClick={() => onChange(generatePassword())}>Generate</button></div></label>;
+}
+
+function CredentialPanel({ credentials, copy, email, done }: { credentials: CredentialHandoff; copy: () => void; email: () => void; done: () => void }) {
+  return <div className="space-y-4"><div className="space-y-2 rounded-2xl border border-slate-200 bg-white/75 p-4 text-sm"><div><span className="text-slate-500">Portal:</span> <strong>{window.location.origin}</strong></div><div><span className="text-slate-500">Clinic:</span> <strong>{credentials.clinic}</strong></div><div><span className="text-slate-500">Username:</span> <strong>{credentials.email}</strong></div><div><span className="text-slate-500">Password:</span> <strong className="font-mono">{credentials.password}</strong></div></div><p className="text-xs text-slate-500">This is the only point at which the plain-text password is available. Copy or email it now.</p><div className="grid gap-2 sm:grid-cols-2"><button className={secondaryButton} onClick={copy}>Copy credentials</button><button className={secondaryButton} onClick={email}>Email credentials</button></div><button className={`${primaryButton} w-full`} onClick={done}>Done</button></div>;
+}
+
+function ClinicPortal() {
+  const { session, setSession, logout } = useAuth();
+  const navigate = useNavigate();
+  const token = session!.token;
+  const [tab, setTab] = useState<'overview' | 'request'>('overview');
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [clinic, setClinic] = useState<Clinic | null>(session!.clinic);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const load = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const [orderData, productData, me] = await Promise.all([
+        api<Order[]>('/orders', {}, token),
+        api<Product[]>('/products', {}, token),
+        api<{ user: User; clinic: Clinic | null }>('/me', {}, token),
+      ]);
+      setOrders(orderData);
+      setProducts(productData);
+      setClinic(me.clinic);
+      setSession({ token, user: me.user, clinic: me.clinic });
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Clinic portal could not be loaded.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => { void load(); }, []);
+  const signOut = () => { logout(); navigate('/login', { replace: true }); };
+
+  return (
+    <div className="relative min-h-screen overflow-hidden bg-[#020b1f] text-white">
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(24,190,255,0.18),transparent_32%),radial-gradient(circle_at_85%_75%,rgba(54,98,255,0.18),transparent_34%),linear-gradient(145deg,#020817_0%,#061b3f_52%,#020b1f_100%)]" />
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-[#020b1f]/72 backdrop-blur-2xl"><div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 md:px-8"><div className="flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-sm font-black">OM</div><div><div className="text-sm font-black tracking-[0.18em]">OCCU-MED</div><div className="text-xs text-cyan-100/60">{clinic?.clinic_name || 'Clinic Portal'}</div></div></div><div className="flex items-center gap-3"><div className="hidden text-right sm:block"><div className="text-xs font-semibold text-white/80">{session?.user.name}</div><div className="text-[11px] text-cyan-100/50">{session?.user.email}</div></div><button onClick={signOut} className="rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-semibold text-white/80 hover:bg-white/[0.12]">Sign out</button></div></div></header>
+      <main className="relative z-10 mx-auto max-w-7xl space-y-6 px-4 py-6 md:px-8 md:py-8"><div className="flex gap-2 rounded-2xl border border-white/10 bg-white/[0.045] p-2"><button onClick={() => setTab('overview')} className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition ${tab === 'overview' ? 'bg-gradient-to-r from-blue-600 to-cyan-500' : 'text-white/55 hover:bg-white/[0.07] hover:text-white'}`}>Request History</button><button onClick={() => setTab('request')} className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition ${tab === 'request' ? 'bg-gradient-to-r from-blue-600 to-cyan-500' : 'text-white/55 hover:bg-white/[0.07] hover:text-white'}`}>New Supply Request</button></div><DarkError message={error} />{tab === 'overview' ? <ClinicOrders orders={orders} loading={loading} startRequest={() => setTab('request')} /> : clinic ? <NewSupplyRequest products={products} clinic={clinic} user={session!.user} token={token} complete={async () => { await load(); setTab('overview'); }} /> : <DarkPanel className="p-8 text-center text-white/50">This user is not attached to a clinic.</DarkPanel>}</main>
+    </div>
+  );
+}
+
+function ClinicOrders({ orders, loading, startRequest }: { orders: Order[]; loading: boolean; startRequest: () => void }) {
+  return <DarkPanel className="overflow-hidden"><div className="flex flex-col gap-3 border-b border-white/10 p-5 sm:flex-row sm:items-center sm:justify-between"><div><h1 className="text-xl font-black">Lab supply requests</h1><p className="mt-1 text-sm text-white/45">Track every request submitted by users at your clinic.</p></div><button onClick={startRequest} className="rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-500 px-5 py-3 text-sm font-semibold shadow-[0_0_28px_rgba(34,211,238,0.24)]">Create request</button></div>{loading ? <div className="p-10 text-center text-white/45">Loading requests…</div> : orders.length === 0 ? <div className="p-10 text-center text-white/45">No supply requests have been submitted yet.</div> : <div className="divide-y divide-white/10">{orders.map((order) => <article key={order.id} className="p-5"><div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div><div className="flex flex-wrap items-center gap-3"><span className="font-mono text-sm font-bold text-cyan-100">{order.order_number}</span><span className="rounded-full border border-cyan-200/20 bg-cyan-300/10 px-2.5 py-1 text-xs font-semibold text-cyan-100">{order.order_status}</span></div><div className="mt-2 text-sm text-white/50">Submitted {new Date(order.created_at).toLocaleDateString()} {order.submitted_by_name ? `by ${order.submitted_by_name}` : ''}</div></div>{order.tracking_number && <div className="rounded-2xl border border-cyan-200/15 bg-cyan-300/[0.07] px-4 py-3 text-sm"><span className="text-white/45">Tracking</span><div className="mt-1 font-mono font-bold text-cyan-100">{order.tracking_number}</div></div>}</div><div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{order.order_items.map((item) => <div key={item.product_id} className="rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2 text-sm text-white/65"><span className="font-semibold text-white/85">{item.quantity} {item.unit_label || 'unit(s)'}</span> · {item.product_name}</div>)}</div></article>)}</div>}</DarkPanel>;
+}
+
+function NewSupplyRequest({ products, clinic, user, token, complete }: { products: Product[]; clinic: Clinic; user: User; token: string; complete: () => Promise<void> }) {
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [neededBy, setNeededBy] = useState('');
+  const [instructions, setInstructions] = useState('');
+  const [category, setCategory] = useState('All');
+  const [search, setSearch] = useState('');
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const categories = useMemo(() => ['All', ...Array.from(new Set(products.map((product) => product.category)))], [products]);
+  const visible = products.filter((product) => (category === 'All' || product.category === category) && `${product.product_name} ${product.product_code}`.toLowerCase().includes(search.toLowerCase()));
+  const selected = Object.values(quantities).filter((quantity) => quantity > 0).length;
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    const items = Object.entries(quantities).filter(([, quantity]) => quantity > 0).map(([product_id, quantity]) => ({ product_id, quantity }));
+    if (!items.length) return setError('Select at least one supply item.');
+    setSaving(true);
+    setError('');
+    try {
+      await api('/orders', { method: 'POST', body: JSON.stringify({ items, requested_by: user.name, needed_by: neededBy || null, special_instructions: instructions }) }, token);
+      await complete();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Request could not be submitted.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  return <form onSubmit={submit} className="grid gap-6 xl:grid-cols-[1fr_340px]"><DarkPanel className="overflow-hidden"><div className="border-b border-white/10 p-5"><h1 className="text-xl font-black">Select lab supplies</h1><div className="mt-5 grid gap-3 md:grid-cols-[1fr_220px]"><input className={darkInputClass} value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search supplies or code" /><select className={darkInputClass} value={category} onChange={(event) => setCategory(event.target.value)}>{categories.map((item) => <option className="bg-slate-950" key={item}>{item}</option>)}</select></div></div><div className="grid gap-4 p-5 md:grid-cols-2">{visible.map((product) => <div key={product.id} className={`rounded-2xl border p-4 transition ${quantities[product.id] > 0 ? 'border-cyan-300/40 bg-cyan-300/[0.08]' : 'border-white/10 bg-white/[0.035]'}`}><div className="flex items-start justify-between gap-3"><div><div className="text-xs font-bold uppercase tracking-wider text-cyan-200/70">{product.category}</div><h3 className="mt-2 font-bold">{product.product_name}</h3><p className="mt-1 font-mono text-xs text-white/35">{product.product_code}</p></div><span className="rounded-xl border border-white/10 bg-white/[0.05] px-2.5 py-1 text-xs text-white/60">{product.unit_label}</span></div><p className="mt-3 min-h-10 text-sm text-white/45">{product.description}</p><div className="mt-4 flex items-center gap-3"><button type="button" onClick={() => setQuantities((current) => ({ ...current, [product.id]: Math.max(0, (current[product.id] || 0) - 1) }))} className="h-10 w-10 rounded-xl border border-white/10 bg-white/[0.06] text-lg">−</button><input type="number" min="0" max="999" className="h-10 w-20 rounded-xl border border-white/10 bg-white/[0.07] text-center font-bold outline-none" value={quantities[product.id] || 0} onChange={(event) => setQuantities((current) => ({ ...current, [product.id]: Math.max(0, Number(event.target.value) || 0) }))} /><button type="button" onClick={() => setQuantities((current) => ({ ...current, [product.id]: (current[product.id] || 0) + 1 }))} className="h-10 w-10 rounded-xl border border-white/10 bg-white/[0.06] text-lg">+</button></div></div>)}</div></DarkPanel><DarkPanel className="h-fit p-5 xl:sticky xl:top-28"><h2 className="text-xl font-black">Request details</h2><div className="mt-5 space-y-4"><DarkError message={error} /><div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm"><div className="text-white/45">Shipping to</div><div className="mt-1 font-bold">{clinic.clinic_name}</div><div className="mt-1 text-white/55">{clinic.address}<br />{clinic.city}, {clinic.state} {clinic.zip_code}</div></div><label className="block"><span className="mb-2 block text-sm text-white/65">Needed by</span><input className={darkInputClass} type="date" value={neededBy} onChange={(event) => setNeededBy(event.target.value)} /></label><label className="block"><span className="mb-2 block text-sm text-white/65">Special instructions</span><textarea className={`${darkInputClass} min-h-28 resize-y`} value={instructions} onChange={(event) => setInstructions(event.target.value)} placeholder="Kit preferences, urgency, or delivery notes" /></label><div className="rounded-2xl border border-cyan-200/15 bg-cyan-300/[0.06] p-4 text-sm"><strong>{selected}</strong> supply item{selected === 1 ? '' : 's'} selected</div><button className="w-full rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-500 px-5 py-3 font-semibold shadow-[0_0_28px_rgba(34,211,238,0.24)] disabled:opacity-50" disabled={saving || selected === 0}>{saving ? 'Submitting…' : 'Submit to Occu-Med'}</button></div></DarkPanel></form>;
+}
+
+function App() {
+  return <AuthProvider><Routes><Route path="/login" element={<LoginPage />} /><Route path="/admin" element={<Protected role="admin"><AdminPortal /></Protected>} /><Route path="/clinic" element={<Protected role="clinic_user"><ClinicPortal /></Protected>} /><Route path="*" element={<Navigate to="/login" replace />} /></Routes></AuthProvider>;
+}
+
 export default App;
