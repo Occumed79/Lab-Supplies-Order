@@ -9,6 +9,7 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 12
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -17,13 +18,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
 
       - name: Install frontend dependencies
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       - name: Install backend dependencies
-        run: npm --prefix backend ci
+        run: npm --prefix backend install --no-audit --no-fund
 
       - name: Typecheck frontend
         run: npm run typecheck
