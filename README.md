@@ -51,13 +51,18 @@ Both Render services use the exact same `DATABASE_URL` so that:
 
 Passwords are stored only as bcrypt hashes. The plain-text temporary password is shown only when an admin creates or resets a clinic user.
 
-## Render settings
+## Manual Render setup
+
+Create both services manually in Render. **Do not use a Render Blueprint.**
 
 Both deployments are **Node Web Services**, not Static Sites.
 
 Shared settings:
 
 ```txt
+Repository: Occumed79/Lab-Supplies-Order
+Branch: main
+Root directory: leave blank
 Build command: npm install && npm run build:render
 Start command: npm start
 Health check: /health
