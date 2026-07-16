@@ -7,7 +7,7 @@ on:
       - "agent/**"
 
 concurrency:
-  group: validate-lab-portal-${{ github.ref }}
+  group: validate-lab-portal-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
