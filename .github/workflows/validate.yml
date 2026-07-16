@@ -1,0 +1,43 @@
+name: Validate Lab Portal
+
+on:
+  pull_request:
+  push:
+    branches:
+      - "agent/**"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install backend dependencies
+        run: npm --prefix backend ci
+
+      - name: Typecheck frontend
+        run: npm run typecheck
+
+      - name: Build clinic portal
+        run: npm run build
+        env:
+          VITE_APP_MODE: clinic
+
+      - name: Build admin portal
+        run: npm run build
+        env:
+          VITE_APP_MODE: admin
+          VITE_CLINIC_APP_URL: https://lab-supplies-order.onrender.com
+
+      - name: Check backend syntax
+        run: node --check backend/server.js
