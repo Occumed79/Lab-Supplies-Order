@@ -5,26 +5,31 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { neon } from '@neondatabase/serverless';
 import { randomBytes } from 'node:crypto';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { sendPlainEmail } from './mailer.js';
 
 const app = express();
 const port = Number(process.env.PORT || 10000);
 const databaseUrl = process.env.DATABASE_URL;
-const frontendOrigins = String(process.env.FRONTEND_ORIGIN || '*').split(',').map((value) => value.trim()).filter(Boolean);
+const appMode = process.env.APP_MODE === 'admin' ? 'admin' : 'clinic';
 const adminEmail = String(process.env.ADMIN_EMAIL || '').trim().toLowerCase();
 const adminPassword = String(process.env.ADMIN_PASSWORD || '');
 const adminName = String(process.env.ADMIN_NAME || 'Occu-Med Administrator').trim();
 const notificationEmail = String(process.env.ORDER_NOTIFICATION_EMAIL || adminEmail).trim();
+const frontendOrigins = String(process.env.FRONTEND_ORIGIN || '*').split(',').map((value) => value.trim()).filter(Boolean);
 
 if (!databaseUrl) {
   console.error('Missing DATABASE_URL');
   process.exit(1);
 }
 
-const authSecret = process.env.AUTH_SECRET || `${databaseUrl}:${adminEmail}:occu-med-lab-portal`;
+const authSecret = process.env.AUTH_SECRET || `${databaseUrl}:${appMode}:${adminEmail}:occu-med-lab-portal`;
 const sql = neon(databaseUrl);
 const allowedStatuses = ['Pending', 'Approved', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const distPath = path.resolve(__dirname, '../dist');
 
 app.disable('x-powered-by');
 app.use(express.json({ limit: '1mb' }));
@@ -58,7 +63,7 @@ function serializeUser(user, clinicName = null) {
 
 function signUser(user) {
   return jwt.sign(
-    { sub: user.id, email: user.email, name: user.name, role: user.role, clinicId: user.clinic_id ?? null },
+    { sub: user.id, email: user.email, name: user.name, role: user.role, clinicId: user.clinic_id ?? null, mode: appMode },
     authSecret,
     { expiresIn: '12h', issuer: 'occu-med-lab-supply-portal' },
   );
@@ -68,7 +73,9 @@ function authRequired(req, res, next) {
   const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
   if (!token) return res.status(401).json({ error: 'Authentication required.' });
   try {
-    req.auth = jwt.verify(token, authSecret, { issuer: 'occu-med-lab-supply-portal' });
+    const auth = jwt.verify(token, authSecret, { issuer: 'occu-med-lab-supply-portal' });
+    if (auth.mode !== appMode) return res.status(401).json({ error: 'This session belongs to the other portal.' });
+    req.auth = auth;
     return next();
   } catch {
     return res.status(401).json({ error: 'Your session has expired. Please sign in again.' });
@@ -77,6 +84,11 @@ function authRequired(req, res, next) {
 
 const roleRequired = (...roles) => (req, res, next) => {
   if (!roles.includes(req.auth?.role)) return res.status(403).json({ error: 'You do not have access to this action.' });
+  return next();
+};
+
+const modeRequired = (mode) => (_req, res, next) => {
+  if (appMode !== mode) return res.status(404).json({ error: 'Not found.' });
   return next();
 };
 
@@ -225,8 +237,7 @@ async function initDb() {
   }
 }
 
-app.get('/health', (_req, res) => res.json({ ok: true, service: 'lab-supplies-order-api' }));
-app.get('/', (_req, res) => res.json({ service: 'lab-supplies-order-api', status: 'running' }));
+app.get('/health', (_req, res) => res.json({ ok: true, service: 'lab-supplies-order', mode: appMode }));
 
 app.post('/auth/login', async (req, res) => {
   try {
@@ -234,7 +245,8 @@ app.post('/auth/login', async (req, res) => {
     const password = String(req.body?.password || '');
     const rows = await sql`SELECT * FROM users WHERE lower(email) = ${loginEmail} LIMIT 1`;
     const user = rows[0];
-    if (!user || !user.active || !(await bcrypt.compare(password, user.password_hash))) {
+    const requiredRole = appMode === 'admin' ? 'admin' : 'clinic_user';
+    if (!user || user.role !== requiredRole || !user.active || !(await bcrypt.compare(password, user.password_hash))) {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
     const clinic = user.role === 'clinic_user' ? await clinicForUser(user.id) : null;
@@ -242,7 +254,7 @@ app.post('/auth/login', async (req, res) => {
       return res.status(403).json({ error: 'This clinic account is not active.' });
     }
     await sql`UPDATE users SET last_login_at = now() WHERE id = ${user.id}`;
-    return res.json({ token: signUser(user), user: serializeUser(user, clinic?.clinic_name || null), clinic });
+    return res.json({ token: signUser(user), user: serializeUser(user, clinic?.clinic_name || null), clinic, mode: appMode });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: 'Login failed.' });
@@ -254,15 +266,15 @@ app.get('/me', authRequired, async (req, res) => {
   const user = rows[0];
   if (!user || !user.active) return res.status(401).json({ error: 'Account is not active.' });
   const clinic = user.role === 'clinic_user' ? await clinicForUser(user.id) : null;
-  return res.json({ user: serializeUser(user, clinic?.clinic_name || null), clinic });
+  return res.json({ user: serializeUser(user, clinic?.clinic_name || null), clinic, mode: appMode });
 });
 
-app.get('/products', authRequired, async (_req, res) => {
+app.get('/products', modeRequired('clinic'), authRequired, roleRequired('clinic_user'), async (_req, res) => {
   const rows = await sql`SELECT id, product_name, product_code, description, category, unit_label, is_available FROM products WHERE is_available = true ORDER BY display_order, category, product_name`;
   return res.json(rows);
 });
 
-app.get('/clinic/profile', authRequired, roleRequired('clinic_user'), async (req, res) => {
+app.get('/clinic/profile', modeRequired('clinic'), authRequired, roleRequired('clinic_user'), async (req, res) => {
   const clinic = await clinicForUser(req.auth.sub);
   if (!clinic) return res.status(404).json({ error: 'Clinic profile not found.' });
   return res.json(clinic);
@@ -271,7 +283,7 @@ app.get('/clinic/profile', authRequired, roleRequired('clinic_user'), async (req
 app.get('/orders', authRequired, async (req, res) => {
   try {
     let rows;
-    if (req.auth.role === 'admin') {
+    if (appMode === 'admin' && req.auth.role === 'admin') {
       rows = await sql`
         SELECT o.*, c.clinic_name, c.email AS clinic_email, u.name AS submitted_by_name
         FROM orders o
@@ -279,7 +291,7 @@ app.get('/orders', authRequired, async (req, res) => {
         LEFT JOIN users u ON u.id = o.submitted_by_user_id
         ORDER BY o.created_at DESC
       `;
-    } else {
+    } else if (appMode === 'clinic' && req.auth.role === 'clinic_user') {
       const clinic = await clinicForUser(req.auth.sub);
       rows = clinic ? await sql`
         SELECT o.*, c.clinic_name, c.email AS clinic_email, u.name AS submitted_by_name
@@ -289,6 +301,8 @@ app.get('/orders', authRequired, async (req, res) => {
         WHERE o.clinic_id = ${clinic.id}
         ORDER BY o.created_at DESC
       ` : [];
+    } else {
+      return res.status(403).json({ error: 'You do not have access to these requests.' });
     }
     return res.json(rows.map(normalizeOrder));
   } catch (error) {
@@ -297,7 +311,7 @@ app.get('/orders', authRequired, async (req, res) => {
   }
 });
 
-app.post('/orders', authRequired, roleRequired('clinic_user'), async (req, res) => {
+app.post('/orders', modeRequired('clinic'), authRequired, roleRequired('clinic_user'), async (req, res) => {
   try {
     const clinic = await clinicForUser(req.auth.sub);
     if (!clinic) return res.status(404).json({ error: 'Clinic profile not found.' });
@@ -354,7 +368,7 @@ app.post('/orders', authRequired, roleRequired('clinic_user'), async (req, res) 
   }
 });
 
-app.get('/admin/clinics', authRequired, roleRequired('admin'), async (_req, res) => {
+app.get('/admin/clinics', modeRequired('admin'), authRequired, roleRequired('admin'), async (_req, res) => {
   const rows = await sql`
     SELECT c.*,
       (SELECT count(*)::int FROM users u WHERE u.clinic_id = c.id) AS user_count,
@@ -364,7 +378,7 @@ app.get('/admin/clinics', authRequired, roleRequired('admin'), async (_req, res)
   return res.json(rows);
 });
 
-app.post('/admin/clinics', authRequired, roleRequired('admin'), async (req, res) => {
+app.post('/admin/clinics', modeRequired('admin'), authRequired, roleRequired('admin'), async (req, res) => {
   try {
     const clinicName = clean(req.body?.clinic_name, 200);
     if (!clinicName) return res.status(400).json({ error: 'Clinic name is required.' });
@@ -377,7 +391,7 @@ app.post('/admin/clinics', authRequired, roleRequired('admin'), async (req, res)
   }
 });
 
-app.patch('/admin/clinics/:id', authRequired, roleRequired('admin'), async (req, res) => {
+app.patch('/admin/clinics/:id', modeRequired('admin'), authRequired, roleRequired('admin'), async (req, res) => {
   try {
     const clinic = await clinicById(req.params.id);
     if (!clinic) return res.status(404).json({ error: 'Clinic not found.' });
@@ -400,7 +414,7 @@ app.patch('/admin/clinics/:id', authRequired, roleRequired('admin'), async (req,
   }
 });
 
-app.get('/admin/users', authRequired, roleRequired('admin'), async (_req, res) => {
+app.get('/admin/users', modeRequired('admin'), authRequired, roleRequired('admin'), async (_req, res) => {
   const rows = await sql`
     SELECT u.*, c.clinic_name
     FROM users u LEFT JOIN clinics c ON c.id = u.clinic_id
@@ -410,7 +424,7 @@ app.get('/admin/users', authRequired, roleRequired('admin'), async (_req, res) =
   return res.json(rows.map((row) => serializeUser(row, row.clinic_name || null)));
 });
 
-app.post('/admin/users', authRequired, roleRequired('admin'), async (req, res) => {
+app.post('/admin/users', modeRequired('admin'), authRequired, roleRequired('admin'), async (req, res) => {
   try {
     const name = clean(req.body?.name, 160);
     const userEmail = cleanEmail(req.body?.email);
@@ -429,7 +443,7 @@ app.post('/admin/users', authRequired, roleRequired('admin'), async (req, res) =
   }
 });
 
-app.patch('/admin/users/:id', authRequired, roleRequired('admin'), async (req, res) => {
+app.patch('/admin/users/:id', modeRequired('admin'), authRequired, roleRequired('admin'), async (req, res) => {
   try {
     if (!uuidPattern.test(String(req.params.id))) return res.status(400).json({ error: 'Invalid user id.' });
     const rows = await sql`SELECT * FROM users WHERE id = ${req.params.id} AND role = 'clinic_user' LIMIT 1`;
@@ -459,7 +473,7 @@ app.patch('/admin/users/:id', authRequired, roleRequired('admin'), async (req, r
   }
 });
 
-app.delete('/admin/users/:id', authRequired, roleRequired('admin'), async (req, res) => {
+app.delete('/admin/users/:id', modeRequired('admin'), authRequired, roleRequired('admin'), async (req, res) => {
   try {
     if (!uuidPattern.test(String(req.params.id))) return res.status(400).json({ error: 'Invalid user id.' });
     const rows = await sql`DELETE FROM users WHERE id = ${req.params.id} AND role = 'clinic_user' RETURNING id`;
@@ -471,11 +485,11 @@ app.delete('/admin/users/:id', authRequired, roleRequired('admin'), async (req, 
   }
 });
 
-app.patch('/admin/orders/:id', authRequired, roleRequired('admin'), async (req, res) => {
+app.patch('/admin/orders/:id', modeRequired('admin'), authRequired, roleRequired('admin'), async (req, res) => {
   try {
     if (!uuidPattern.test(String(req.params.id))) return res.status(400).json({ error: 'Invalid request id.' });
     const status = clean(req.body?.order_status, 30);
-    if (!allowedStatuses.includes(status)) return res.status(400).json({ error: 'Invalid order status.' });
+    if (!allowedStatuses.includes(status)) return res.status(400).json({ error: 'Invalid request status.' });
     const trackingNumber = clean(req.body?.tracking_number, 150);
     const rows = await sql`UPDATE orders SET
       order_status = ${status}, tracking_number = ${trackingNumber},
@@ -497,8 +511,11 @@ app.patch('/admin/orders/:id', authRequired, roleRequired('admin'), async (req, 
   }
 });
 
+app.use(express.static(distPath));
+app.get('*', (_req, res) => res.sendFile(path.join(distPath, 'index.html')));
+
 initDb()
-  .then(() => app.listen(port, '0.0.0.0', () => console.log(`Lab Supplies API listening on ${port}`)))
+  .then(() => app.listen(port, '0.0.0.0', () => console.log(`Lab Supply Portal listening on ${port} in ${appMode} mode`)))
   .catch((error) => {
     console.error('Failed to initialize database:', error);
     process.exit(1);
