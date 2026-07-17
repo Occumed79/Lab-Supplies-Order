@@ -11,7 +11,7 @@
     "dev": "vite",
     "dev:api": "npm --prefix backend run dev",
     "build": "vite build",
-    "build:render": "npm --prefix backend install && vite build",
+    "build:render": "npm install --include=dev --no-audit --no-fund && npm --prefix backend install --omit=dev --no-audit --no-fund && npm run build",
     "start": "npm --prefix backend start",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview"
