@@ -16,7 +16,11 @@ const appMode = process.env.APP_MODE === 'admin' ? 'admin' : 'clinic';
 const adminEmail = String(process.env.ADMIN_EMAIL || '').trim().toLowerCase();
 const adminPassword = String(process.env.ADMIN_PASSWORD || '');
 const adminName = String(process.env.ADMIN_NAME || 'Occu-Med Administrator').trim();
-const notificationEmail = String(process.env.ORDER_NOTIFICATION_EMAIL || adminEmail).trim();
+const notificationEmail = String(
+  process.env.ORDER_NOTIFICATION_EMAIL ||
+  process.env.SUPPLY_REQUEST_INBOX ||
+  adminEmail,
+).trim();
 const frontendOrigins = String(process.env.FRONTEND_ORIGIN || '*').split(',').map((value) => value.trim()).filter(Boolean);
 
 if (!databaseUrl) {
@@ -24,7 +28,7 @@ if (!databaseUrl) {
   process.exit(1);
 }
 
-const authSecret = process.env.AUTH_SECRET || `${databaseUrl}:${appMode}:${adminEmail}:occu-med-lab-portal`;
+const authSecret = process.env.AUTH_SECRET || process.env.JWT_SECRET || `${databaseUrl}:${appMode}:${adminEmail}:occu-med-lab-portal`;
 const sql = neon(databaseUrl);
 const allowedStatuses = ['Pending', 'Approved', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
