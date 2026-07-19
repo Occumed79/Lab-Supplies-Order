@@ -64,17 +64,30 @@ button { cursor: pointer; }
   isolation: isolate;
   color: #102a45;
   background: linear-gradient(145deg, rgba(255,255,255,.96), rgba(242,247,251,.90));
-  border: 1px solid rgba(255,255,255,.98);
+  border: 1px solid rgba(151,183,215,.72);
   box-shadow:
     0 22px 56px rgba(0,7,20,.34),
     0 0 34px rgba(255,255,255,.06),
-    inset 0 0 0 1px rgba(15,45,73,.16),
-    inset 0 0 0 2px rgba(255,255,255,.62),
     inset 0 1px 0 rgba(255,255,255,1);
   backdrop-filter: blur(26px) saturate(125%);
   -webkit-backdrop-filter: blur(26px) saturate(125%);
   transition: border-color .24s ease, box-shadow .24s ease, transform .24s ease;
 }
+
+.glass-card::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: 4px;
+  border: 1px solid rgba(13,43,72,.34);
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.40),
+    inset 0 1px 0 rgba(255,255,255,.55);
+}
+
+.glass-card > * { position: relative; z-index: 1; }
 
 .glass-card .text-slate-500,
 .glass-card p.text-slate-500 { color: #5f7186 !important; }
@@ -89,13 +102,11 @@ button { cursor: pointer; }
   background:
     linear-gradient(122deg, rgba(255,255,255,.075), transparent 24%),
     linear-gradient(180deg, rgba(3,13,29,.82), rgba(5,24,47,.76));
-  border: 1px solid rgba(255,255,255,.18);
+  border: 1px solid rgba(145,187,222,.52);
   border-radius: 2rem;
   box-shadow:
     18px 18px 54px rgba(0,4,14,.42),
     0 0 30px rgba(79,173,221,.07),
-    inset 0 0 0 1px rgba(1,10,24,.74),
-    inset 0 0 0 2px rgba(255,255,255,.055),
     inset 1px 1px 0 rgba(255,255,255,.18);
   backdrop-filter: blur(34px) saturate(145%);
   -webkit-backdrop-filter: blur(34px) saturate(145%);
@@ -110,6 +121,19 @@ button { cursor: pointer; }
   background:
     radial-gradient(ellipse at 8% 2%, rgba(255,255,255,.15), transparent 30%),
     linear-gradient(112deg, transparent 0 63%, rgba(116,204,238,.045) 78%, transparent 100%);
+}
+
+.sidebar-shell::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  inset: 5px;
+  border: 1px solid rgba(105,153,193,.42);
+  border-radius: calc(2rem - 5px);
+  pointer-events: none;
+  box-shadow:
+    0 0 0 1px rgba(0,8,21,.72),
+    inset 0 1px 0 rgba(255,255,255,.08);
 }
 
 .sidebar-shell > * { position: relative; z-index: 1; }
@@ -152,10 +176,12 @@ button { cursor: pointer; }
 .nav-button.active {
   color: #071a30;
   background: linear-gradient(145deg, rgba(255,255,255,.98), rgba(238,244,249,.92));
-  border-color: rgba(255,255,255,1);
+  border-color: rgba(161,193,221,.88);
   box-shadow:
     0 10px 24px rgba(0,0,0,.24),
     0 0 24px rgba(255,255,255,.12),
+    inset 0 0 0 2px rgba(255,255,255,.82),
+    inset 0 0 0 3px rgba(16,48,78,.28),
     inset 0 1px 0 rgba(255,255,255,1);
 }
 
@@ -307,14 +333,12 @@ button:disabled { cursor: not-allowed; opacity: .38; transform: none !important;
   color: rgba(226,235,245,.72) !important;
 }
 
-/* Selected content cards get a contained luminous frame on hover/focus. */
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.rounded-2xl.p-5,
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.rounded-2xl.p-6 {
+/* Only the large featured frame card carries the animated perimeter light. */
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.mt-6.rounded-2xl.p-6 {
   overflow: hidden;
 }
 
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.rounded-2xl.p-5::after,
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.rounded-2xl.p-6::after {
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.mt-6.rounded-2xl.p-6::after {
   content: "";
   position: absolute;
   z-index: 3;
@@ -341,25 +365,18 @@ button:disabled { cursor: not-allowed; opacity: .38; transform: none !important;
   transition: opacity .22s ease;
 }
 
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.rounded-2xl.p-5:hover,
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.rounded-2xl.p-5:focus-within,
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.rounded-2xl.p-6:hover,
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.rounded-2xl.p-6:focus-within {
-  border-color: rgba(255,255,255,1);
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.mt-6.rounded-2xl.p-6:hover,
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.mt-6.rounded-2xl.p-6:focus-within {
+  border-color: rgba(194,220,241,.96);
   box-shadow:
     0 24px 62px rgba(0,7,20,.38),
     0 0 28px rgba(94,176,226,.12),
-    inset 0 0 0 1px rgba(15,45,73,.19),
-    inset 0 0 0 2px rgba(255,255,255,.72),
     inset 0 1px 0 rgba(255,255,255,1);
 }
 
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.rounded-2xl.p-5:hover::after,
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.rounded-2xl.p-5:focus-within::after,
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.rounded-2xl.p-5:active::after,
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.rounded-2xl.p-6:hover::after,
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.rounded-2xl.p-6:focus-within::after,
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.rounded-2xl.p-6:active::after {
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.mt-6.rounded-2xl.p-6:hover::after,
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.mt-6.rounded-2xl.p-6:focus-within::after,
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.mt-6.rounded-2xl.p-6:active::after {
   opacity: 1;
   animation: frame-ring-orbit 2.8s linear infinite;
 }
@@ -375,12 +392,10 @@ button:disabled { cursor: not-allowed; opacity: .38; transform: none !important;
   overflow: hidden;
   color: #fff;
   background: linear-gradient(145deg, rgba(9,29,56,.94), rgba(3,15,33,.88));
-  border: 1px solid rgba(255,255,255,.25);
+  border: 1px solid rgba(154,192,222,.58);
   box-shadow:
     0 30px 90px rgba(0,0,0,.44),
     0 0 54px rgba(255,255,255,.09),
-    inset 0 0 0 1px rgba(1,9,22,.64),
-    inset 0 0 0 2px rgba(255,255,255,.08),
     inset 0 1px 0 rgba(255,255,255,.25),
     inset 0 0 44px rgba(255,255,255,.025);
   backdrop-filter: blur(30px) saturate(125%);
@@ -388,10 +403,9 @@ button:disabled { cursor: not-allowed; opacity: .38; transform: none !important;
 }
 
 .portal-bg.flex.min-h-screen.items-center.justify-center > .glass-card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
+  inset: 5px;
+  border-color: rgba(101,151,192,.42);
+  box-shadow: 0 0 0 1px rgba(0,8,21,.68);
   background: linear-gradient(115deg, rgba(255,255,255,.09), transparent 32%, transparent 68%, rgba(255,255,255,.035));
 }
 
@@ -473,8 +487,11 @@ button:disabled { cursor: not-allowed; opacity: .38; transform: none !important;
   .sidebar-shell {
     width: calc(100% - 1.5rem);
     margin: .75rem;
-    border: 1px solid rgba(255,255,255,.18);
+    border: 1px solid rgba(145,187,222,.52);
     border-radius: 1.5rem;
+  }
+  .sidebar-shell::after {
+    border-radius: calc(1.5rem - 5px);
   }
   .desktop-table { display: none; }
   .portal-bg.flex.min-h-screen.items-center.justify-center .logo-img {
