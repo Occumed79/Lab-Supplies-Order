@@ -50,6 +50,11 @@ const positiveInt = (value) => {
   const parsed = Number.parseInt(String(value), 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 };
+const uniqueUuidList = (values) => Array.from(new Set(
+  (Array.isArray(values) ? values : [])
+    .map((value) => String(value))
+    .filter((value) => uuidPattern.test(value)),
+));
 
 function serializeUser(user, clinicName = null) {
   return {
@@ -120,6 +125,7 @@ function normalizeOrder(row) {
 
 async function initDb() {
   await sql`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`;
+
   await sql`CREATE TABLE IF NOT EXISTS users (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
     email text UNIQUE NOT NULL,
@@ -128,6 +134,7 @@ async function initDb() {
     role text NOT NULL DEFAULT 'clinic_user',
     created_at timestamptz NOT NULL DEFAULT now()
   )`;
+
   await sql`CREATE TABLE IF NOT EXISTS clinics (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id uuid REFERENCES users(id) ON DELETE SET NULL,
@@ -144,6 +151,7 @@ async function initDb() {
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now()
   )`;
+
   await sql`ALTER TABLE clinics ADD COLUMN IF NOT EXISTS contact_name text`;
   await sql`ALTER TABLE clinics ADD COLUMN IF NOT EXISTS email text`;
   await sql`ALTER TABLE clinics ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now()`;
@@ -172,6 +180,19 @@ async function initDb() {
   )`;
   await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS unit_label text NOT NULL DEFAULT 'Each'`;
   await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS display_order integer NOT NULL DEFAULT 0`;
+
+  await sql`CREATE TABLE IF NOT EXISTS clinic_products (
+    clinic_id uuid NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
+    product_id uuid NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (clinic_id, product_id)
+  )`;
+  await sql`CREATE INDEX IF NOT EXISTS clinic_products_product_idx ON clinic_products(product_id)`;
+
+  await sql`CREATE TABLE IF NOT EXISTS app_migrations (
+    name text PRIMARY KEY,
+    run_at timestamptz NOT NULL DEFAULT now()
+  )`;
 
   await sql`CREATE TABLE IF NOT EXISTS orders (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -230,6 +251,15 @@ async function initDb() {
         display_order = EXCLUDED.display_order`;
   }
 
+  const migration = await sql`SELECT name FROM app_migrations WHERE name = 'clinic_products_v1_backfill' LIMIT 1`;
+  if (!migration.length) {
+    await sql`INSERT INTO clinic_products (clinic_id, product_id)
+      SELECT c.id, p.id FROM clinics c CROSS JOIN products p
+      WHERE p.is_available = true
+      ON CONFLICT DO NOTHING`;
+    await sql`INSERT INTO app_migrations (name) VALUES ('clinic_products_v1_backfill') ON CONFLICT DO NOTHING`;
+  }
+
   if (adminEmail && adminPassword) {
     const existing = await sql`SELECT id FROM users WHERE lower(email) = ${adminEmail} LIMIT 1`;
     const passwordHash = await bcrypt.hash(adminPassword, 12);
@@ -273,9 +303,22 @@ app.get('/me', authRequired, async (req, res) => {
   return res.json({ user: serializeUser(user, clinic?.clinic_name || null), clinic, mode: appMode });
 });
 
-app.get('/products', modeRequired('clinic'), authRequired, roleRequired('clinic_user'), async (_req, res) => {
-  const rows = await sql`SELECT id, product_name, product_code, description, category, unit_label, is_available FROM products WHERE is_available = true ORDER BY display_order, category, product_name`;
-  return res.json(rows);
+app.get('/products', modeRequired('clinic'), authRequired, roleRequired('clinic_user'), async (req, res) => {
+  try {
+    const clinic = await clinicForUser(req.auth.sub);
+    if (!clinic) return res.status(404).json({ error: 'Clinic profile not found.' });
+    const rows = await sql`
+      SELECT p.id, p.product_name, p.product_code, p.description, p.category, p.unit_label, p.is_available
+      FROM clinic_products cp
+      JOIN products p ON p.id = cp.product_id
+      WHERE cp.clinic_id = ${clinic.id} AND p.is_available = true
+      ORDER BY p.display_order, p.category, p.product_name
+    `;
+    return res.json(rows);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Could not load clinic lab items.' });
+  }
 });
 
 app.get('/clinic/profile', modeRequired('clinic'), authRequired, roleRequired('clinic_user'), async (req, res) => {
@@ -323,7 +366,13 @@ app.post('/orders', modeRequired('clinic'), authRequired, roleRequired('clinic_u
     const quantities = new Map(requestedItems.map((item) => [String(item.product_id), positiveInt(item.quantity)]).filter(([, quantity]) => quantity > 0));
     if (!quantities.size) return res.status(400).json({ error: 'Select at least one supply item.' });
 
-    const products = await sql`SELECT id, product_name, product_code, category, unit_label FROM products WHERE is_available = true ORDER BY display_order`;
+    const products = await sql`
+      SELECT p.id, p.product_name, p.product_code, p.category, p.unit_label
+      FROM clinic_products cp
+      JOIN products p ON p.id = cp.product_id
+      WHERE cp.clinic_id = ${clinic.id} AND p.is_available = true
+      ORDER BY p.display_order
+    `;
     const orderItems = products.filter((product) => quantities.has(product.id)).map((product) => ({
       product_id: product.id,
       product_name: product.product_name,
@@ -332,7 +381,7 @@ app.post('/orders', modeRequired('clinic'), authRequired, roleRequired('clinic_u
       unit_label: product.unit_label,
       quantity: quantities.get(product.id),
     }));
-    if (!orderItems.length) return res.status(400).json({ error: 'No valid supply items were selected.' });
+    if (orderItems.length !== quantities.size) return res.status(400).json({ error: 'One or more selected lab items are not assigned to this clinic.' });
 
     const orderNumber = `LS-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${randomBytes(2).toString('hex').toUpperCase()}`;
     const neededBy = clean(req.body?.needed_by, 10) || null;
@@ -372,11 +421,26 @@ app.post('/orders', modeRequired('clinic'), authRequired, roleRequired('clinic_u
   }
 });
 
+app.get('/admin/products', modeRequired('admin'), authRequired, roleRequired('admin'), async (_req, res) => {
+  try {
+    const rows = await sql`
+      SELECT id, product_name, product_code, description, category, unit_label, is_available
+      FROM products
+      ORDER BY display_order, category, product_name
+    `;
+    return res.json(rows);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Could not load lab items.' });
+  }
+});
+
 app.get('/admin/clinics', modeRequired('admin'), authRequired, roleRequired('admin'), async (_req, res) => {
   const rows = await sql`
     SELECT c.*,
       (SELECT count(*)::int FROM users u WHERE u.clinic_id = c.id) AS user_count,
-      (SELECT count(*)::int FROM orders o WHERE o.clinic_id = c.id) AS order_count
+      (SELECT count(*)::int FROM orders o WHERE o.clinic_id = c.id) AS order_count,
+      (SELECT count(*)::int FROM clinic_products cp JOIN products p ON p.id = cp.product_id WHERE cp.clinic_id = c.id AND p.is_available = true) AS assigned_product_count
     FROM clinics c ORDER BY c.clinic_name
   `;
   return res.json(rows);
@@ -415,6 +479,51 @@ app.patch('/admin/clinics/:id', modeRequired('admin'), authRequired, roleRequire
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: 'Could not update clinic.' });
+  }
+});
+
+app.get('/admin/clinics/:id/products', modeRequired('admin'), authRequired, roleRequired('admin'), async (req, res) => {
+  try {
+    const clinic = await clinicById(req.params.id);
+    if (!clinic) return res.status(404).json({ error: 'Clinic not found.' });
+    const rows = await sql`SELECT product_id FROM clinic_products WHERE clinic_id = ${clinic.id} ORDER BY product_id`;
+    return res.json({ clinic_id: clinic.id, product_ids: rows.map((row) => row.product_id) });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Could not load clinic lab items.' });
+  }
+});
+
+app.put('/admin/clinics/:id/products', modeRequired('admin'), authRequired, roleRequired('admin'), async (req, res) => {
+  try {
+    const clinic = await clinicById(req.params.id);
+    if (!clinic) return res.status(404).json({ error: 'Clinic not found.' });
+    const productIds = uniqueUuidList(req.body?.product_ids);
+    const payload = JSON.stringify(productIds);
+    const rows = await sql`
+      WITH requested AS (
+        SELECT value::uuid AS product_id
+        FROM jsonb_array_elements_text(${payload}::jsonb)
+      ),
+      deleted AS (
+        DELETE FROM clinic_products WHERE clinic_id = ${clinic.id} RETURNING 1
+      ),
+      inserted AS (
+        INSERT INTO clinic_products (clinic_id, product_id)
+        SELECT ${clinic.id}, p.id
+        FROM products p
+        JOIN requested r ON r.product_id = p.id
+        CROSS JOIN (SELECT count(*) FROM deleted) deletion_gate
+        WHERE p.is_available = true
+        ON CONFLICT DO NOTHING
+        RETURNING product_id
+      )
+      SELECT product_id FROM inserted ORDER BY product_id
+    `;
+    return res.json({ clinic_id: clinic.id, product_ids: rows.map((row) => row.product_id) });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Could not save clinic lab items.' });
   }
 });
 
