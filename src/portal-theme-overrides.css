@@ -1,0 +1,179 @@
+/* Final authenticated Admin + Clinic portal treatment.
+   Removes the remaining pale-blue component fills while preserving white content surfaces. */
+
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) {
+  background:
+    radial-gradient(circle at 12% 12%, rgba(255,255,255,.10), transparent 22rem),
+    radial-gradient(circle at 86% 68%, rgba(255,255,255,.075), transparent 30rem),
+    linear-gradient(145deg, #01050e 0%, #031126 45%, #061d38 100%) !important;
+}
+
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center)::before {
+  background:
+    radial-gradient(circle at 18% 24%, rgba(255,255,255,.24) 0, rgba(255,255,255,.09) 10%, transparent 30%),
+    radial-gradient(circle at 78% 64%, rgba(255,255,255,.20) 0, rgba(255,255,255,.07) 12%, transparent 33%),
+    radial-gradient(circle at 58% 14%, rgba(255,255,255,.13) 0, transparent 25%) !important;
+  filter: blur(27px) !important;
+  opacity: 1 !important;
+}
+
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center)::after {
+  background:
+    radial-gradient(ellipse at 28% 80%, rgba(255,255,255,.16), transparent 28%),
+    radial-gradient(ellipse at 84% 30%, rgba(255,255,255,.14), transparent 25%),
+    linear-gradient(112deg, transparent 30%, rgba(255,255,255,.045) 48%, transparent 66%) !important;
+  filter: blur(38px) !important;
+  opacity: .98 !important;
+}
+
+/* Additional moving white light ribbons behind both authenticated portals. */
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main::before,
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main::after {
+  content: "";
+  position: fixed;
+  inset: -28%;
+  z-index: -1;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main::before {
+  background:
+    radial-gradient(ellipse at 32% 38%, rgba(255,255,255,.13), transparent 27%),
+    radial-gradient(ellipse at 72% 66%, rgba(255,255,255,.11), transparent 30%);
+  filter: blur(54px);
+  animation: authenticated-white-drift 17s ease-in-out infinite alternate;
+}
+
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main::after {
+  background:
+    conic-gradient(from 205deg at 52% 48%, transparent 0 24%, rgba(255,255,255,.055) 31%, transparent 39% 67%, rgba(255,255,255,.045) 75%, transparent 84% 100%);
+  filter: blur(38px);
+  opacity: .9;
+  animation: authenticated-white-sweep 27s linear infinite;
+}
+
+/* Neutral-white content surfaces: no pale blue or blue-gray fills. */
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) .glass-card {
+  background: linear-gradient(145deg, rgba(255,255,255,.985), rgba(249,249,248,.955)) !important;
+  border-color: rgba(255,255,255,1) !important;
+  box-shadow:
+    0 24px 58px rgba(0,5,16,.38),
+    0 0 34px rgba(255,255,255,.15),
+    0 0 1px 1px rgba(255,255,255,.82),
+    inset 0 1px 0 rgba(255,255,255,1) !important;
+}
+
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) [class*="bg-[#edf7fc]"],
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) [class*="bg-[#eaf4fb]"],
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) [class*="bg-[#e7f2fa]"],
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) [class*="bg-[#d9e9f4]"] {
+  background: rgba(250,250,249,.98) !important;
+}
+
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) [class*="bg-white/55"],
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) [class*="bg-white/48"],
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) [class*="bg-white/70"],
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) [class*="bg-white/72"] {
+  background: rgba(255,255,255,.96) !important;
+}
+
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) [class*="border-[#75a9c9]"],
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) [class*="border-[#bbd7e6]"],
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) [class*="border-[#bad5e6]"] {
+  border-color: rgba(15,39,65,.23) !important;
+}
+
+/* Replace the blue active/summary elements with restrained navy and white. */
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) [class*="bg-[#1c5f85]"] {
+  background: linear-gradient(135deg, #153858, #071c34) !important;
+}
+
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) [class*="text-[#1c5f85]"],
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) [class*="text-[#225b7d]"],
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) [class*="text-[#38779d]"] {
+  color: #102f50 !important;
+}
+
+/* Product tiles, request-detail blocks, search areas, tables, and empty states. */
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) .glass-card [class*="rounded-2xl"][class*="border"],
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) .glass-card [class*="rounded-xl"][class*="border"] {
+  box-shadow:
+    0 9px 22px rgba(8,21,35,.07),
+    inset 0 1px 0 rgba(255,255,255,1);
+}
+
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) .field {
+  background: #fff !important;
+  border-color: rgba(16,42,69,.18) !important;
+  box-shadow:
+    inset 0 1px 2px rgba(5,18,31,.045),
+    0 0 0 1px rgba(255,255,255,.92),
+    0 7px 18px rgba(5,18,31,.055) !important;
+}
+
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) .field:focus {
+  border-color: rgba(11,38,66,.54) !important;
+  box-shadow:
+    0 0 0 3px rgba(12,39,67,.10),
+    0 0 24px rgba(255,255,255,.24) !important;
+}
+
+/* Stronger luminous separation for Admin sidebar and Clinic header. */
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) .sidebar-shell {
+  border-right-color: rgba(255,255,255,.20) !important;
+  box-shadow:
+    18px 0 52px rgba(0,4,14,.46),
+    1px 0 0 rgba(255,255,255,.15),
+    8px 0 30px rgba(255,255,255,.055) !important;
+}
+
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) > header {
+  border-bottom-color: rgba(255,255,255,.20) !important;
+  box-shadow:
+    0 16px 42px rgba(0,5,16,.38),
+    0 1px 0 rgba(255,255,255,.13),
+    0 10px 30px rgba(255,255,255,.045) !important;
+}
+
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) .nav-button.active {
+  background: linear-gradient(145deg, #fff, #f7f7f6) !important;
+  box-shadow:
+    0 11px 26px rgba(0,0,0,.28),
+    0 0 29px rgba(255,255,255,.20),
+    inset 0 1px 0 #fff !important;
+}
+
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) .primary-button {
+  background: linear-gradient(135deg, #173c60 0%, #071b32 100%) !important;
+  box-shadow:
+    0 12px 27px rgba(0,7,19,.32),
+    0 0 24px rgba(255,255,255,.10),
+    inset 0 1px 0 rgba(255,255,255,.20) !important;
+}
+
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) .primary-button:hover {
+  box-shadow:
+    0 15px 34px rgba(0,7,19,.40),
+    0 0 35px rgba(255,255,255,.18),
+    inset 0 1px 0 rgba(255,255,255,.28) !important;
+}
+
+@keyframes authenticated-white-drift {
+  0% { transform: translate3d(-7%, -4%, 0) scale(1); opacity: .68; }
+  45% { transform: translate3d(4%, 3%, 0) scale(1.12); opacity: 1; }
+  100% { transform: translate3d(9%, -2%, 0) scale(1.04); opacity: .78; }
+}
+
+@keyframes authenticated-white-sweep {
+  0% { transform: rotate(0deg) scale(1.02); opacity: .62; }
+  50% { transform: rotate(180deg) scale(1.10); opacity: .96; }
+  100% { transform: rotate(360deg) scale(1.02); opacity: .62; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .portal-bg:not(.flex.min-h-screen.items-center.justify-center) main::before,
+  .portal-bg:not(.flex.min-h-screen.items-center.justify-center) main::after {
+    animation: none;
+  }
+}
