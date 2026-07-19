@@ -37,6 +37,40 @@ interface Product {
   is_available: boolean;
 }
 
+const PRODUCT_IMAGE_RULES: Array<{ image: string; aliases: string[] }> = [
+  { image: 'lc-clinical-collection-kit.png', aliases: ['lcclinicalcollectionkit', 'labcorclinicalcollectionkit', 'labcorpclinicalcollectionkit'] },
+  { image: 'crl-clinical-collection-kit.png', aliases: ['crlclinicalcollectionkit', 'clinicalreferencelaboratoryclinicalcollectionkit'] },
+  { image: 'fedex-shipping-envelope.png', aliases: ['fedexshippingenvelope', 'fedexclinicalpak', 'clinicalshippingpak', 'shippingpak'] },
+  { image: 'lithium-heparin-green-top.png', aliases: ['lithiumheparingreentop', 'greentoptube', 'lithiumheparintube'] },
+  { image: 'edta-lavender-top.png', aliases: ['edtalavendertop', 'lavendertoptube', 'edtatube'] },
+  { image: 'plain-serum-red-top.png', aliases: ['plainserumredtop', 'redtoptube', 'plainserumtube'] },
+  { image: 'sodium-citrate-light-blue-top.png', aliases: ['sodiumcitratelightbluetop', 'lightbluetoptube', 'sodiumcitratetube'] },
+  { image: 'tiger-top-sst.png', aliases: ['tigertopsst', 'tigertoptube'] },
+  { image: 'gold-sst.png', aliases: ['goldsst', 'goldtoptube'] },
+  { image: 'royal-blue-trace-element.png', aliases: ['royalbluetraceelement', 'royalbluetoptube', 'traceelementtube'] },
+  { image: 'exempt-specimen-box.png', aliases: ['exemptspecimenbox', 'exempthumanspecimenbox', 'specimenshippingbox'] },
+  { image: 'fedex-shipping-label.png', aliases: ['fedexshippinglabel', 'shippinglabel'] },
+  { image: 'biohazard-bag.png', aliases: ['biohazardbag', 'tamperevidentbag', 'specimenbag'] },
+  { image: 'lc-split-urine-cup.png', aliases: ['lcspliturinecup', 'labcorpspliturinecup', 'labcorpspecimencollectioncup'] },
+  { image: 'crl-split-urine-cup.png', aliases: ['crlspliturinecup', 'clinicalreferencelaboratoryspliturinecup', 'crlspecimencollectioncup'] },
+  { image: 'lc-chain-of-custody.png', aliases: ['lcchainofcustody', 'labcorpchainofcustody', 'labcorpchainofcustodyform'] },
+  { image: 'crl-chain-of-custody.png', aliases: ['crlchainofcustody', 'clinicalreferencelaboratorychainofcustody', 'crlchainofcustodyform'] },
+  { image: 'lc-lab-requisition.png', aliases: ['lclabrequisition', 'labcorplabrequisition', 'labcorprequisitionform'] },
+  { image: 'crl-lab-requisition.png', aliases: ['crllabrequisition', 'clinicalreferencelaboratorylabrequisition', 'crlrequisitionform'] }
+];
+
+const getProductImage = (product: Product): string | undefined => {
+  const searchable = `${product.product_name} ${product.product_code}`
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+
+  const match = PRODUCT_IMAGE_RULES.find(rule =>
+    rule.aliases.some(alias => searchable.includes(alias))
+  );
+
+  return match ? `/${match.image}` : undefined;
+};
+
 interface OrderItem {
   product_id: string;
   product_name: string;
@@ -674,6 +708,7 @@ const OrderPlacementScreen: React.FC = () => {
 
 const ProductCard: React.FC<{ product: Product, onAdd: (qty: number) => void }> = ({ product, onAdd }) => {
   const [qty, setQty] = useState(1);
+  const productImage = getProductImage(product);
 
   return (
     <GlassCard className="flex flex-col h-full">
@@ -683,6 +718,16 @@ const ProductCard: React.FC<{ product: Product, onAdd: (qty: number) => void }> 
           {product.is_available ? 'In Stock' : 'Out of Stock'}
         </span>
       </div>
+      {productImage && (
+        <div className="h-40 mb-4 flex items-center justify-center overflow-hidden rounded-2xl bg-white/5 border border-white/10">
+          <img
+            src={productImage}
+            alt={product.product_name}
+            className="w-full h-full object-contain p-3 drop-shadow-lg"
+            loading="lazy"
+          />
+        </div>
+      )}
       <h3 className="text-lg font-bold text-foreground leading-tight mb-1">{product.product_name}</h3>
       <p className="text-xs text-primary font-medium mb-3">{product.category}</p>
       <p className="text-sm text-muted-foreground flex-grow line-clamp-3 mb-4">{product.description}</p>
