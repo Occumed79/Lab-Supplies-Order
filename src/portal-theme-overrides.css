@@ -1,179 +1,346 @@
-/* Final authenticated Admin + Clinic portal treatment.
-   Removes the remaining pale-blue component fills while preserving white content surfaces. */
+/* Authenticated Admin + Clinic portals only.
+   Login screens keep their existing treatment because they include the raw `flex` class. */
 
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) {
+.portal-bg:not(.flex) {
   background:
-    radial-gradient(circle at 12% 12%, rgba(255,255,255,.10), transparent 22rem),
-    radial-gradient(circle at 86% 68%, rgba(255,255,255,.075), transparent 30rem),
-    linear-gradient(145deg, #01050e 0%, #031126 45%, #061d38 100%) !important;
+    radial-gradient(circle at 18% 14%, rgba(255,255,255,.035), transparent 24rem),
+    radial-gradient(circle at 84% 78%, rgba(145,180,220,.045), transparent 32rem),
+    linear-gradient(145deg, #020713 0%, #061427 48%, #0a2038 100%) !important;
 }
 
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center)::before {
+/* Keep background luminosity subtle and localized. */
+.portal-bg:not(.flex)::before {
   background:
-    radial-gradient(circle at 18% 24%, rgba(255,255,255,.24) 0, rgba(255,255,255,.09) 10%, transparent 30%),
-    radial-gradient(circle at 78% 64%, rgba(255,255,255,.20) 0, rgba(255,255,255,.07) 12%, transparent 33%),
-    radial-gradient(circle at 58% 14%, rgba(255,255,255,.13) 0, transparent 25%) !important;
-  filter: blur(27px) !important;
-  opacity: 1 !important;
+    radial-gradient(circle at 26% 30%, rgba(255,255,255,.055), transparent 25%),
+    radial-gradient(circle at 72% 72%, rgba(175,205,235,.045), transparent 29%) !important;
+  filter: blur(62px) !important;
+  opacity: .62 !important;
+  animation: restrained-background-drift 32s ease-in-out infinite alternate !important;
 }
 
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center)::after {
+.portal-bg:not(.flex)::after {
   background:
-    radial-gradient(ellipse at 28% 80%, rgba(255,255,255,.16), transparent 28%),
-    radial-gradient(ellipse at 84% 30%, rgba(255,255,255,.14), transparent 25%),
-    linear-gradient(112deg, transparent 30%, rgba(255,255,255,.045) 48%, transparent 66%) !important;
-  filter: blur(38px) !important;
-  opacity: .98 !important;
+    radial-gradient(ellipse at 78% 22%, rgba(255,255,255,.035), transparent 24%),
+    radial-gradient(ellipse at 22% 82%, rgba(135,176,216,.035), transparent 27%) !important;
+  filter: blur(74px) !important;
+  opacity: .48 !important;
+  animation: restrained-background-drift-reverse 40s ease-in-out infinite alternate !important;
 }
 
-/* Additional moving white light ribbons behind both authenticated portals. */
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main::before,
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main::after {
-  content: "";
-  position: fixed;
-  inset: -28%;
-  z-index: -1;
-  pointer-events: none;
-  will-change: transform, opacity;
+/* Remove the oversized screen-bleaching pseudo lights added in the prior pass. */
+.portal-bg:not(.flex) main::before,
+.portal-bg:not(.flex) main::after {
+  content: none !important;
+  display: none !important;
 }
 
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main::before {
+/* Core liquid-glass surface. */
+.portal-bg:not(.flex) .glass-card {
+  position: relative;
+  color: rgba(244,249,255,.94);
   background:
-    radial-gradient(ellipse at 32% 38%, rgba(255,255,255,.13), transparent 27%),
-    radial-gradient(ellipse at 72% 66%, rgba(255,255,255,.11), transparent 30%);
-  filter: blur(54px);
-  animation: authenticated-white-drift 17s ease-in-out infinite alternate;
+    linear-gradient(145deg, rgba(255,255,255,.105), rgba(255,255,255,.045)) !important;
+  border: 1px solid rgba(255,255,255,.16) !important;
+  box-shadow:
+    0 18px 46px rgba(0,4,14,.28),
+    inset 0 1px 0 rgba(255,255,255,.17),
+    inset 0 -1px 0 rgba(255,255,255,.025) !important;
+  backdrop-filter: blur(24px) saturate(132%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(132%) !important;
+  transition:
+    transform .22s ease,
+    border-color .22s ease,
+    background .22s ease,
+    box-shadow .22s ease;
 }
 
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main::after {
+.portal-bg:not(.flex) .glass-card:hover {
+  transform: translateY(-1px);
   background:
-    conic-gradient(from 205deg at 52% 48%, transparent 0 24%, rgba(255,255,255,.055) 31%, transparent 39% 67%, rgba(255,255,255,.045) 75%, transparent 84% 100%);
-  filter: blur(38px);
-  opacity: .9;
-  animation: authenticated-white-sweep 27s linear infinite;
-}
-
-/* Neutral-white content surfaces: no pale blue or blue-gray fills. */
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) .glass-card {
-  background: linear-gradient(145deg, rgba(255,255,255,.985), rgba(249,249,248,.955)) !important;
-  border-color: rgba(255,255,255,1) !important;
+    linear-gradient(145deg, rgba(255,255,255,.135), rgba(255,255,255,.06)) !important;
+  border-color: rgba(255,255,255,.28) !important;
   box-shadow:
-    0 24px 58px rgba(0,5,16,.38),
-    0 0 34px rgba(255,255,255,.15),
-    0 0 1px 1px rgba(255,255,255,.82),
-    inset 0 1px 0 rgba(255,255,255,1) !important;
+    0 22px 54px rgba(0,4,14,.34),
+    0 0 24px rgba(255,255,255,.075),
+    inset 0 1px 0 rgba(255,255,255,.24) !important;
 }
 
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) [class*="bg-[#edf7fc]"],
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) [class*="bg-[#eaf4fb]"],
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) [class*="bg-[#e7f2fa]"],
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) [class*="bg-[#d9e9f4]"] {
-  background: rgba(250,250,249,.98) !important;
-}
-
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) [class*="bg-white/55"],
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) [class*="bg-white/48"],
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) [class*="bg-white/70"],
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) [class*="bg-white/72"] {
-  background: rgba(255,255,255,.96) !important;
-}
-
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) [class*="border-[#75a9c9]"],
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) [class*="border-[#bbd7e6]"],
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) [class*="border-[#bad5e6]"] {
-  border-color: rgba(15,39,65,.23) !important;
-}
-
-/* Replace the blue active/summary elements with restrained navy and white. */
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) [class*="bg-[#1c5f85]"] {
-  background: linear-gradient(135deg, #153858, #071c34) !important;
-}
-
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) [class*="text-[#1c5f85]"],
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) [class*="text-[#225b7d]"],
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) [class*="text-[#38779d]"] {
-  color: #102f50 !important;
-}
-
-/* Product tiles, request-detail blocks, search areas, tables, and empty states. */
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) .glass-card [class*="rounded-2xl"][class*="border"],
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) .glass-card [class*="rounded-xl"][class*="border"] {
+.portal-bg:not(.flex) .glass-card:active {
+  transform: translateY(0) scale(.998);
+  border-color: rgba(255,255,255,.40) !important;
   box-shadow:
-    0 9px 22px rgba(8,21,35,.07),
-    inset 0 1px 0 rgba(255,255,255,1);
+    0 13px 34px rgba(0,4,14,.34),
+    0 0 30px rgba(255,255,255,.12),
+    inset 0 0 22px rgba(255,255,255,.055) !important;
 }
 
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) .field {
-  background: #fff !important;
-  border-color: rgba(16,42,69,.18) !important;
-  box-shadow:
-    inset 0 1px 2px rgba(5,18,31,.045),
-    0 0 0 1px rgba(255,255,255,.92),
-    0 7px 18px rgba(5,18,31,.055) !important;
+.portal-bg:not(.flex) .glass-card h2,
+.portal-bg:not(.flex) .glass-card h3,
+.portal-bg:not(.flex) .glass-card strong,
+.portal-bg:not(.flex) .glass-card .font-bold,
+.portal-bg:not(.flex) .glass-card .font-semibold {
+  color: #f7fbff !important;
 }
 
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) .field:focus {
-  border-color: rgba(11,38,66,.54) !important;
-  box-shadow:
-    0 0 0 3px rgba(12,39,67,.10),
-    0 0 24px rgba(255,255,255,.24) !important;
+.portal-bg:not(.flex) .glass-card p,
+.portal-bg:not(.flex) .glass-card .text-slate-500,
+.portal-bg:not(.flex) .glass-card .text-slate-600 {
+  color: rgba(218,230,243,.72) !important;
 }
 
-/* Stronger luminous separation for Admin sidebar and Clinic header. */
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) .sidebar-shell {
-  border-right-color: rgba(255,255,255,.20) !important;
+/* Nested product, clinic, request, detail, and credential surfaces. */
+.portal-bg:not(.flex) .glass-card [class*="rounded-2xl"][class*="border"],
+.portal-bg:not(.flex) .glass-card [class*="rounded-xl"][class*="border"],
+.portal-bg:not(.flex) [class*="bg-white/55"],
+.portal-bg:not(.flex) [class*="bg-white/48"],
+.portal-bg:not(.flex) [class*="bg-white/70"],
+.portal-bg:not(.flex) [class*="bg-slate-50/70"] {
+  color: rgba(244,249,255,.94) !important;
+  background:
+    linear-gradient(145deg, rgba(255,255,255,.075), rgba(255,255,255,.028)) !important;
+  border-color: rgba(255,255,255,.12) !important;
   box-shadow:
-    18px 0 52px rgba(0,4,14,.46),
-    1px 0 0 rgba(255,255,255,.15),
-    8px 0 30px rgba(255,255,255,.055) !important;
+    0 10px 28px rgba(0,4,14,.18),
+    inset 0 1px 0 rgba(255,255,255,.105) !important;
+  backdrop-filter: blur(16px) saturate(125%);
+  -webkit-backdrop-filter: blur(16px) saturate(125%);
+  transition:
+    transform .2s ease,
+    border-color .2s ease,
+    background .2s ease,
+    box-shadow .2s ease;
 }
 
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) > header {
-  border-bottom-color: rgba(255,255,255,.20) !important;
+.portal-bg:not(.flex) .glass-card [class*="rounded-2xl"][class*="border"]:hover,
+.portal-bg:not(.flex) .glass-card [class*="rounded-xl"][class*="border"]:hover,
+.portal-bg:not(.flex) [class*="bg-white/55"]:hover,
+.portal-bg:not(.flex) [class*="bg-white/48"]:hover {
+  transform: translateY(-2px);
+  background:
+    linear-gradient(145deg, rgba(255,255,255,.115), rgba(255,255,255,.044)) !important;
+  border-color: rgba(255,255,255,.26) !important;
   box-shadow:
-    0 16px 42px rgba(0,5,16,.38),
-    0 1px 0 rgba(255,255,255,.13),
-    0 10px 30px rgba(255,255,255,.045) !important;
+    0 16px 34px rgba(0,4,14,.26),
+    0 0 20px rgba(255,255,255,.07),
+    inset 0 1px 0 rgba(255,255,255,.17) !important;
 }
 
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) .nav-button.active {
-  background: linear-gradient(145deg, #fff, #f7f7f6) !important;
+.portal-bg:not(.flex) .glass-card [class*="rounded-2xl"][class*="border"]:active,
+.portal-bg:not(.flex) .glass-card [class*="rounded-xl"][class*="border"]:active,
+.portal-bg:not(.flex) [class*="bg-white/55"]:active,
+.portal-bg:not(.flex) [class*="bg-white/48"]:active {
+  transform: translateY(0) scale(.996);
+  border-color: rgba(255,255,255,.38) !important;
   box-shadow:
-    0 11px 26px rgba(0,0,0,.28),
-    0 0 29px rgba(255,255,255,.20),
-    inset 0 1px 0 #fff !important;
+    0 9px 24px rgba(0,4,14,.25),
+    0 0 28px rgba(255,255,255,.11),
+    inset 0 0 18px rgba(255,255,255,.055) !important;
 }
 
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) .primary-button {
-  background: linear-gradient(135deg, #173c60 0%, #071b32 100%) !important;
+/* Selected supply card: luminous navy glass, never pale blue. */
+.portal-bg:not(.flex) [class*="bg-[#edf7fc]"] {
+  color: #fff !important;
+  background:
+    linear-gradient(145deg, rgba(40,83,126,.46), rgba(8,31,56,.58)) !important;
+  border-color: rgba(200,226,250,.42) !important;
   box-shadow:
-    0 12px 27px rgba(0,7,19,.32),
-    0 0 24px rgba(255,255,255,.10),
+    0 15px 34px rgba(0,5,16,.30),
+    0 0 26px rgba(190,222,250,.12),
     inset 0 1px 0 rgba(255,255,255,.20) !important;
 }
 
-.portal-bg:not(.flex.min-h-screen.items-center.justify-center) .primary-button:hover {
+/* Clinic header hard reset. This prevents Tailwind's bg-white/55 from resurfacing. */
+.portal-bg:not(.flex) > header {
+  position: relative;
+  z-index: 20;
+  color: #f7fbff !important;
+  background:
+    linear-gradient(180deg, rgba(2,9,21,.92), rgba(4,17,34,.84)) !important;
+  border-bottom: 1px solid rgba(255,255,255,.13) !important;
   box-shadow:
-    0 15px 34px rgba(0,7,19,.40),
-    0 0 35px rgba(255,255,255,.18),
-    inset 0 1px 0 rgba(255,255,255,.28) !important;
+    0 14px 36px rgba(0,4,14,.30),
+    inset 0 -1px 0 rgba(255,255,255,.035) !important;
+  backdrop-filter: blur(25px) saturate(125%) !important;
+  -webkit-backdrop-filter: blur(25px) saturate(125%) !important;
 }
 
-@keyframes authenticated-white-drift {
-  0% { transform: translate3d(-7%, -4%, 0) scale(1); opacity: .68; }
-  45% { transform: translate3d(4%, 3%, 0) scale(1.12); opacity: 1; }
-  100% { transform: translate3d(9%, -2%, 0) scale(1.04); opacity: .78; }
+.portal-bg:not(.flex) > header p,
+.portal-bg:not(.flex) > header .text-slate-500 {
+  color: rgba(222,233,244,.72) !important;
 }
 
-@keyframes authenticated-white-sweep {
-  0% { transform: rotate(0deg) scale(1.02); opacity: .62; }
-  50% { transform: rotate(180deg) scale(1.10); opacity: .96; }
-  100% { transform: rotate(360deg) scale(1.02); opacity: .62; }
+.portal-bg:not(.flex) > header .border-slate-200 {
+  border-color: rgba(255,255,255,.16) !important;
+}
+
+.portal-bg:not(.flex) > header .logo-img {
+  opacity: 1 !important;
+  filter:
+    brightness(0) invert(1)
+    drop-shadow(0 0 2px rgba(255,255,255,.90))
+    drop-shadow(0 0 12px rgba(255,255,255,.24)) !important;
+}
+
+/* Admin sidebar stays dark glass; active navigation becomes luminous glass instead of white. */
+.portal-bg:not(.flex) .sidebar-shell {
+  background:
+    linear-gradient(180deg, rgba(2,9,21,.93), rgba(4,20,39,.88)) !important;
+  border-right-color: rgba(255,255,255,.12) !important;
+  box-shadow:
+    16px 0 42px rgba(0,4,14,.32),
+    inset -1px 0 0 rgba(255,255,255,.025) !important;
+}
+
+.portal-bg:not(.flex) .nav-button.active {
+  color: #fff !important;
+  background:
+    linear-gradient(145deg, rgba(255,255,255,.145), rgba(255,255,255,.065)) !important;
+  border-color: rgba(255,255,255,.24) !important;
+  box-shadow:
+    0 10px 24px rgba(0,4,14,.25),
+    0 0 20px rgba(255,255,255,.075),
+    inset 0 1px 0 rgba(255,255,255,.18) !important;
+}
+
+.portal-bg:not(.flex) .nav-button:active {
+  transform: scale(.985);
+  border-color: rgba(255,255,255,.36) !important;
+  box-shadow:
+    0 7px 18px rgba(0,4,14,.25),
+    0 0 24px rgba(255,255,255,.11),
+    inset 0 0 16px rgba(255,255,255,.055) !important;
+}
+
+/* Inputs remain readable but become translucent glass instead of white boxes. */
+.portal-bg:not(.flex) .field {
+  color: #f6fbff !important;
+  background: rgba(3,15,29,.50) !important;
+  border-color: rgba(255,255,255,.15) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.07),
+    0 8px 20px rgba(0,4,14,.14) !important;
+  backdrop-filter: blur(14px) saturate(120%);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
+}
+
+.portal-bg:not(.flex) .field::placeholder {
+  color: rgba(207,220,234,.52) !important;
+}
+
+.portal-bg:not(.flex) .field:focus {
+  border-color: rgba(220,238,255,.50) !important;
+  background: rgba(7,25,45,.68) !important;
+  box-shadow:
+    0 0 0 3px rgba(212,234,255,.08),
+    0 0 24px rgba(210,234,255,.105),
+    inset 0 1px 0 rgba(255,255,255,.11) !important;
+}
+
+.portal-bg:not(.flex) select.field option {
+  color: #10243b;
+  background: #f5f8fb;
+}
+
+/* Buttons and tabs respond with controlled light, not permanent glow. */
+.portal-bg:not(.flex) .primary-button,
+.portal-bg:not(.flex) [class*="bg-[#1c5f85]"] {
+  color: #fff !important;
+  background:
+    linear-gradient(135deg, rgba(28,69,108,.88), rgba(7,28,52,.94)) !important;
+  border-color: rgba(255,255,255,.16) !important;
+  box-shadow:
+    0 10px 24px rgba(0,4,14,.24),
+    inset 0 1px 0 rgba(255,255,255,.11) !important;
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+
+.portal-bg:not(.flex) .primary-button:hover,
+.portal-bg:not(.flex) [class*="bg-[#1c5f85]"]:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255,255,255,.34) !important;
+  box-shadow:
+    0 14px 30px rgba(0,4,14,.30),
+    0 0 24px rgba(210,235,255,.10),
+    inset 0 1px 0 rgba(255,255,255,.18) !important;
+}
+
+.portal-bg:not(.flex) .primary-button:active,
+.portal-bg:not(.flex) [class*="bg-[#1c5f85]"]:active {
+  transform: translateY(0) scale(.985);
+  border-color: rgba(255,255,255,.46) !important;
+  box-shadow:
+    0 8px 20px rgba(0,4,14,.26),
+    0 0 30px rgba(215,238,255,.15),
+    inset 0 0 18px rgba(255,255,255,.07) !important;
+}
+
+.portal-bg:not(.flex) .secondary-button {
+  color: rgba(244,249,255,.94) !important;
+  background: rgba(255,255,255,.075) !important;
+  border-color: rgba(255,255,255,.14) !important;
+  box-shadow: 0 8px 20px rgba(0,4,14,.18) !important;
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+}
+
+.portal-bg:not(.flex) .secondary-button:hover {
+  background: rgba(255,255,255,.12) !important;
+  border-color: rgba(255,255,255,.28) !important;
+  box-shadow:
+    0 11px 24px rgba(0,4,14,.23),
+    0 0 20px rgba(255,255,255,.075) !important;
+}
+
+.portal-bg:not(.flex) .secondary-button:active {
+  transform: scale(.98);
+  border-color: rgba(255,255,255,.38) !important;
+  box-shadow:
+    0 7px 18px rgba(0,4,14,.24),
+    0 0 25px rgba(255,255,255,.11) !important;
+}
+
+/* Neutralize old light-blue text/chip colors. */
+.portal-bg:not(.flex) [class*="text-[#1c5f85]"],
+.portal-bg:not(.flex) [class*="text-[#225b7d]"],
+.portal-bg:not(.flex) [class*="text-[#38779d]"] {
+  color: rgba(218,235,249,.82) !important;
+}
+
+.portal-bg:not(.flex) [class*="bg-[#eaf4fb]"] {
+  color: rgba(231,241,250,.88) !important;
+  background: rgba(255,255,255,.07) !important;
+  border: 1px solid rgba(255,255,255,.11);
+}
+
+.portal-bg:not(.flex) .icon-box {
+  color: rgba(235,245,255,.92) !important;
+  background: rgba(255,255,255,.075) !important;
+  border-color: rgba(255,255,255,.13) !important;
+}
+
+.portal-bg:not(.flex) .table-shell th {
+  color: rgba(218,230,243,.68) !important;
+  border-bottom-color: rgba(255,255,255,.12) !important;
+}
+
+.portal-bg:not(.flex) .table-shell td {
+  color: rgba(244,249,255,.90) !important;
+  border-bottom-color: rgba(255,255,255,.08) !important;
+}
+
+@keyframes restrained-background-drift {
+  0% { transform: translate3d(-2%, -1%, 0) scale(1); }
+  100% { transform: translate3d(3%, 2%, 0) scale(1.035); }
+}
+
+@keyframes restrained-background-drift-reverse {
+  0% { transform: translate3d(2%, 1%, 0) scale(1.02); }
+  100% { transform: translate3d(-3%, -2%, 0) scale(1); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .portal-bg:not(.flex.min-h-screen.items-center.justify-center) main::before,
-  .portal-bg:not(.flex.min-h-screen.items-center.justify-center) main::after {
-    animation: none;
+  .portal-bg:not(.flex)::before,
+  .portal-bg:not(.flex)::after {
+    animation: none !important;
   }
 }
