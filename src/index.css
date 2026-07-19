@@ -60,15 +60,20 @@ button { cursor: pointer; }
 .portal-bg > * { position: relative; z-index: 1; }
 
 .glass-card {
+  position: relative;
+  isolation: isolate;
   color: #102a45;
   background: linear-gradient(145deg, rgba(255,255,255,.96), rgba(242,247,251,.90));
   border: 1px solid rgba(255,255,255,.98);
   box-shadow:
     0 22px 56px rgba(0,7,20,.34),
     0 0 34px rgba(255,255,255,.06),
+    inset 0 0 0 1px rgba(15,45,73,.16),
+    inset 0 0 0 2px rgba(255,255,255,.62),
     inset 0 1px 0 rgba(255,255,255,1);
   backdrop-filter: blur(26px) saturate(125%);
   -webkit-backdrop-filter: blur(26px) saturate(125%);
+  transition: border-color .24s ease, box-shadow .24s ease, transform .24s ease;
 }
 
 .glass-card .text-slate-500,
@@ -77,16 +82,37 @@ button { cursor: pointer; }
 .glass-card h3 { color: #102a45; }
 
 .sidebar-shell {
+  position: relative;
+  align-self: flex-start;
+  overflow: hidden;
   color: #f7fbff;
   background:
-    linear-gradient(180deg, rgba(3,13,29,.98), rgba(5,24,47,.95));
-  border-right: 1px solid rgba(255,255,255,.13);
+    linear-gradient(122deg, rgba(255,255,255,.075), transparent 24%),
+    linear-gradient(180deg, rgba(3,13,29,.82), rgba(5,24,47,.76));
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 2rem;
   box-shadow:
-    18px 0 48px rgba(0,4,14,.38),
-    inset -1px 0 0 rgba(255,255,255,.035);
-  backdrop-filter: blur(28px) saturate(120%);
-  -webkit-backdrop-filter: blur(28px) saturate(120%);
+    18px 18px 54px rgba(0,4,14,.42),
+    0 0 30px rgba(79,173,221,.07),
+    inset 0 0 0 1px rgba(1,10,24,.74),
+    inset 0 0 0 2px rgba(255,255,255,.055),
+    inset 1px 1px 0 rgba(255,255,255,.18);
+  backdrop-filter: blur(34px) saturate(145%);
+  -webkit-backdrop-filter: blur(34px) saturate(145%);
 }
+
+.sidebar-shell::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 8% 2%, rgba(255,255,255,.15), transparent 30%),
+    linear-gradient(112deg, transparent 0 63%, rgba(116,204,238,.045) 78%, transparent 100%);
+}
+
+.sidebar-shell > * { position: relative; z-index: 1; }
 
 .sidebar-shell p,
 .sidebar-shell .text-slate-500 { color: rgba(226,235,245,.72) !important; }
@@ -281,6 +307,63 @@ button:disabled { cursor: not-allowed; opacity: .38; transform: none !important;
   color: rgba(226,235,245,.72) !important;
 }
 
+/* Selected content cards get a contained luminous frame on hover/focus. */
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.rounded-2xl.p-5,
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.rounded-2xl.p-6 {
+  overflow: hidden;
+}
+
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.rounded-2xl.p-5::after,
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.rounded-2xl.p-6::after {
+  content: "";
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  pointer-events: none;
+  opacity: 0;
+  background: conic-gradient(
+    from var(--frame-angle),
+    transparent 0deg 220deg,
+    rgba(94,176,226,.08) 250deg,
+    rgba(150,220,255,.72) 286deg,
+    rgba(255,255,255,.98) 312deg,
+    rgba(111,194,240,.38) 334deg,
+    transparent 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  filter: drop-shadow(0 0 7px rgba(114,195,239,.62));
+  transition: opacity .22s ease;
+}
+
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.rounded-2xl.p-5:hover,
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.rounded-2xl.p-5:focus-within,
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.rounded-2xl.p-6:hover,
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.rounded-2xl.p-6:focus-within {
+  border-color: rgba(255,255,255,1);
+  box-shadow:
+    0 24px 62px rgba(0,7,20,.38),
+    0 0 28px rgba(94,176,226,.12),
+    inset 0 0 0 1px rgba(15,45,73,.19),
+    inset 0 0 0 2px rgba(255,255,255,.72),
+    inset 0 1px 0 rgba(255,255,255,1);
+}
+
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.rounded-2xl.p-5:hover::after,
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.rounded-2xl.p-5:focus-within::after,
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.rounded-2xl.p-5:active::after,
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.rounded-2xl.p-6:hover::after,
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.rounded-2xl.p-6:focus-within::after,
+.portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card.rounded-2xl.p-6:active::after {
+  opacity: 1;
+  animation: frame-ring-orbit 2.8s linear infinite;
+}
+
 /* Shared Admin + Clinic login treatment */
 .portal-bg.flex.min-h-screen.items-center.justify-center {
   color: #fff;
@@ -296,6 +379,8 @@ button:disabled { cursor: not-allowed; opacity: .38; transform: none !important;
   box-shadow:
     0 30px 90px rgba(0,0,0,.44),
     0 0 54px rgba(255,255,255,.09),
+    inset 0 0 0 1px rgba(1,9,22,.64),
+    inset 0 0 0 2px rgba(255,255,255,.08),
     inset 0 1px 0 rgba(255,255,255,.25),
     inset 0 0 44px rgba(255,255,255,.025);
   backdrop-filter: blur(30px) saturate(125%);
@@ -345,6 +430,16 @@ button:disabled { cursor: not-allowed; opacity: .38; transform: none !important;
 
 .portal-bg.flex.min-h-screen.items-center.justify-center .primary-button { min-height: 48px; }
 
+@property --frame-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes frame-ring-orbit {
+  to { --frame-angle: 360deg; }
+}
+
 @keyframes portal-luminous-drift {
   0% { transform: translate3d(-5%, -3%, 0) scale(1); opacity: .70; }
   45% { transform: translate3d(4%, 2%, 0) scale(1.08); opacity: 1; }
@@ -357,15 +452,29 @@ button:disabled { cursor: not-allowed; opacity: .38; transform: none !important;
   100% { transform: translate3d(-8%, 5%, 0) rotate(-2deg) scale(1); }
 }
 
+@media (min-width: 768px) {
+  .sidebar-shell {
+    position: sticky;
+    top: 1rem;
+    width: 17rem !important;
+    min-height: calc(100vh - 2rem) !important;
+    height: calc(100vh - 2rem);
+    margin: 1rem 0 1rem 1rem;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .portal-bg::before,
-  .portal-bg::after { animation: none; }
+  .portal-bg::after,
+  .portal-bg:not(.flex.min-h-screen.items-center.justify-center) main .glass-card::after { animation: none; }
 }
 
 @media (max-width: 767px) {
   .sidebar-shell {
-    border-right: 0;
-    border-bottom: 1px solid rgba(255,255,255,.13);
+    width: calc(100% - 1.5rem);
+    margin: .75rem;
+    border: 1px solid rgba(255,255,255,.18);
+    border-radius: 1.5rem;
   }
   .desktop-table { display: none; }
   .portal-bg.flex.min-h-screen.items-center.justify-center .logo-img {
