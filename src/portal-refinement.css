@@ -1,0 +1,224 @@
+/* Final portal material refinements. Loaded after index.css. */
+
+.logo-img {
+  image-rendering: auto;
+  filter:
+    brightness(0) invert(1)
+    drop-shadow(0 0 3px rgba(255, 255, 255, .26)) !important;
+}
+
+.glass-card,
+.inner-card,
+.supply-card,
+.assignment-card,
+.credential-card {
+  position: relative;
+  isolation: isolate;
+  color: #f3f8ff !important;
+  border: 1px solid rgba(154, 192, 222, .52) !important;
+  background:
+    linear-gradient(145deg, rgba(31, 53, 83, .84), rgba(15, 39, 68, .82)) !important;
+  box-shadow:
+    0 18px 42px rgba(0, 8, 22, .28),
+    inset 0 0 0 2px rgba(5, 20, 39, .44),
+    inset 0 0 0 3px rgba(179, 210, 235, .34),
+    inset 0 1px 0 rgba(255, 255, 255, .15) !important;
+  backdrop-filter: blur(24px) saturate(132%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(132%) !important;
+}
+
+.glass-card::before,
+.glass-card::after,
+.inner-card::before,
+.inner-card::after,
+.supply-card::before,
+.supply-card::after,
+.assignment-card::before,
+.assignment-card::after,
+.credential-card::before,
+.credential-card::after {
+  content: none !important;
+}
+
+.glass-card h1,
+.glass-card h2,
+.glass-card h3,
+.glass-card strong,
+.inner-card h3,
+.supply-card h3,
+.assignment-card strong,
+.credential-card strong {
+  color: #ffffff !important;
+}
+
+.glass-card .text-slate-500,
+.glass-card p.text-slate-500,
+.inner-card .text-slate-500,
+.supply-card .text-slate-500,
+.assignment-card .text-slate-500,
+.credential-card .text-slate-500 {
+  color: rgba(219, 232, 246, .68) !important;
+}
+
+.sidebar-shell {
+  color: #f5f9ff !important;
+  border: 1px solid rgba(132, 177, 214, .48) !important;
+  background:
+    linear-gradient(145deg, rgba(17, 40, 69, .91), rgba(5, 24, 47, .92)) !important;
+  box-shadow:
+    18px 20px 48px rgba(0, 6, 18, .36),
+    inset 0 0 0 2px rgba(2, 15, 32, .52),
+    inset 0 0 0 3px rgba(148, 190, 222, .27),
+    inset 0 1px 0 rgba(255, 255, 255, .12) !important;
+  backdrop-filter: blur(28px) saturate(130%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(130%) !important;
+}
+
+.sidebar-shell::before,
+.sidebar-shell::after {
+  content: none !important;
+}
+
+.sidebar-shell p,
+.sidebar-shell .text-slate-500 {
+  color: rgba(222, 234, 247, .72) !important;
+}
+
+.sidebar-shell .nav-button.active {
+  color: #f8fbff !important;
+  border: 1px solid rgba(174, 204, 228, .46) !important;
+  background: linear-gradient(145deg, rgba(75, 93, 119, .37), rgba(28, 50, 79, .5)) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(4, 17, 34, .45),
+    inset 0 0 0 2px rgba(203, 224, 241, .16),
+    0 8px 20px rgba(0, 5, 15, .2) !important;
+}
+
+.sub-card {
+  color: #edf5ff;
+  border: 1px solid rgba(151, 185, 213, .24);
+  background: linear-gradient(145deg, rgba(255, 255, 255, .065), rgba(255, 255, 255, .025));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .06),
+    inset 0 0 0 1px rgba(4, 19, 37, .22);
+}
+
+.inner-card,
+.supply-card,
+.assignment-card,
+.credential-card {
+  background: linear-gradient(145deg, rgba(42, 64, 94, .58), rgba(16, 40, 69, .55)) !important;
+}
+
+.credential-card {
+  font-size: .9rem;
+}
+
+.modal-panel {
+  width: min(620px, 100%);
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+}
+
+.modal-panel-wide {
+  width: min(900px, 100%);
+}
+
+.product-assignment-list {
+  scrollbar-width: thin;
+}
+
+.ring-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.ring-card::after {
+  content: "" !important;
+  position: absolute;
+  z-index: 8;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  opacity: 0;
+  background: conic-gradient(
+    from var(--ring-angle),
+    transparent 0deg 225deg,
+    rgba(111, 190, 238, .06) 250deg,
+    rgba(137, 211, 255, .52) 282deg,
+    rgba(255, 255, 255, .98) 307deg,
+    rgba(121, 200, 247, .34) 330deg,
+    transparent 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  filter: drop-shadow(0 0 2px rgba(142, 211, 255, .36));
+  transition: opacity .2s ease;
+}
+
+.ring-card:hover::after,
+.ring-card:focus-within::after,
+.ring-card:active::after,
+.ring-card.ring-selected::after {
+  opacity: 1;
+  animation: portal-ring-orbit 2.6s linear infinite;
+}
+
+.ring-card:hover,
+.ring-card:focus-within,
+.ring-card.ring-selected {
+  border-color: rgba(194, 221, 242, .7) !important;
+  box-shadow:
+    0 20px 46px rgba(0, 8, 22, .3),
+    inset 0 0 0 2px rgba(4, 18, 36, .43),
+    inset 0 0 0 3px rgba(199, 223, 241, .42),
+    inset 0 1px 0 rgba(255, 255, 255, .18) !important;
+}
+
+.assignment-card {
+  cursor: pointer;
+}
+
+.assignment-card input[type="checkbox"] {
+  accent-color: #3b82b6;
+}
+
+.table-shell th,
+.table-shell td {
+  border-color: rgba(208, 226, 241, .14) !important;
+}
+
+.table-shell th {
+  color: rgba(218, 231, 244, .7) !important;
+}
+
+.table-shell td {
+  color: #edf5ff;
+}
+
+.modal-panel label > span,
+.portal-bg.flex.min-h-screen.items-center.justify-center label > span,
+main label > span {
+  color: rgba(238, 246, 253, .88) !important;
+}
+
+@property --ring-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes portal-ring-orbit {
+  to { --ring-angle: 360deg; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ring-card::after {
+    animation: none !important;
+  }
+}
