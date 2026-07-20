@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "node scripts/configure-api-base.mjs && vite",
     "build": "node scripts/configure-api-base.mjs && vite build",
-    "build:render": "npm install --include=dev --no-audit --no-fund && npm run build",
+    "build:render": "npm run build",
     "preview": "vite preview"
   },
   "dependencies": {
