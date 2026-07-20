@@ -42,10 +42,42 @@ async function initDb() {
   await sql`CREATE TABLE IF NOT EXISTS orders (id uuid PRIMARY KEY DEFAULT uuid_generate_v4(), clinic_id uuid REFERENCES clinics(id) ON DELETE SET NULL, order_number text NOT NULL UNIQUE, order_status text NOT NULL DEFAULT 'Pending', delivery_address text, delivery_city text, delivery_state text, delivery_zip text, delivery_method text, special_instructions text, subtotal numeric(10,2) NOT NULL DEFAULT 0, shipping_cost numeric(10,2) NOT NULL DEFAULT 0, total_cost numeric(10,2) NOT NULL DEFAULT 0, estimated_delivery_date date, order_items jsonb NOT NULL DEFAULT '[]'::jsonb, created_at timestamptz NOT NULL DEFAULT now())`;
   await sql`CREATE TABLE IF NOT EXISTS invitations (id uuid PRIMARY KEY DEFAULT uuid_generate_v4(), admin_user_id uuid REFERENCES users(id) ON DELETE SET NULL, clinic_email text NOT NULL, clinic_name text NOT NULL, invitation_message text, invitation_status text NOT NULL DEFAULT 'Sent', token text UNIQUE NOT NULL, sent_at timestamptz NOT NULL DEFAULT now(), accepted_at timestamptz)`;
 
-  const productCount = await sql`SELECT count(*)::int AS count FROM products`;
-  if ((productCount[0]?.count || 0) === 0) {
-    await sql`INSERT INTO products (product_name, product_code, description, category, price, stock_quantity, is_available) VALUES ('Chain of Custody Forms', 'COC-FORM', 'Standard collection forms.', 'Forms', 0, 500, true), ('Specimen Collection Cups', 'SPEC-CUP', 'Sterile specimen collection cups.', 'Collection Supplies', 0, 250, true), ('Tamper Evident Bags', 'TE-BAG', 'Secure transport bags.', 'Collection Supplies', 0, 400, true), ('Clinical Shipping Pak', 'SHIP-PAK', 'Shipping pak for supplies or documents.', 'Shipping', 0, 200, true)`;
+  const productCatalog = [
+    ['Labcorp Clinical Collection Kit', 'LABCORP-KIT', 'Complete Labcorp clinical collection kit.', 'Collection Kits'],
+    ['CRL Clinical Collection Kit', 'CRL-KIT', 'Complete Clinical Reference Laboratory collection kit.', 'Collection Kits'],
+    ['FedEx Shipping Envelope', 'SHIP-PAK', 'FedEx clinical shipping envelope for specimen transport.', 'Shipping'],
+    ['Lithium Heparin Green-Top Tubes', 'TUBE-HEPARIN', 'Lithium heparin tubes for plasma collections.', 'Collection Tubes'],
+    ['EDTA Lavender-Top Tubes', 'TUBE-EDTA', 'EDTA tubes for hematology collections.', 'Collection Tubes'],
+    ['Plain Serum Red-Top Tubes', 'TUBE-RED', 'Plain serum tubes without separator gel.', 'Collection Tubes'],
+    ['Sodium Citrate Light-Blue-Top Tubes', 'TUBE-CITRATE', 'Sodium citrate tubes for coagulation testing.', 'Collection Tubes'],
+    ['Tiger-Top SST Tubes', 'TUBE-TIGER', 'Tiger-top serum separator tubes.', 'Collection Tubes'],
+    ['Gold SST Tubes', 'TUBE-SST', 'Gold-top serum separator tubes for chemistry and serology testing.', 'Collection Tubes'],
+    ['Royal Blue Trace Element Tubes', 'TUBE-TRACE', 'Royal-blue tubes for trace-element collections.', 'Collection Tubes'],
+    ['Exempt Human Specimen Box', 'EXEMPT-BOX', 'Compliant outer box for exempt human specimen shipments.', 'Shipping'],
+    ['FedEx Shipping Labels', 'FEDEX-LABEL', 'FedEx labels for clinical specimen shipments.', 'Shipping'],
+    ['Biohazard Bags', 'BIO-BAG', 'Leak-resistant specimen transport bags with document pouch.', 'Shipping'],
+    ['Labcorp Split Urine Cups', 'LABCORP-CUP', 'Split urine collection cups for Labcorp drug-screen specimens.', 'Labcorp'],
+    ['CRL Split Urine Cups', 'CRL-CUP', 'Split urine collection cups for CRL drug-screen specimens.', 'CRL'],
+    ['Labcorp Chain of Custody Forms', 'LABCORP-CCF', 'Chain-of-custody forms for Labcorp drug-screen collections.', 'Labcorp'],
+    ['CRL Chain of Custody Forms', 'CRL-CCF', 'Laboratory chain-of-custody forms for CRL collections.', 'CRL'],
+    ['Labcorp Lab Requisition Forms', 'LABCORP-REQ', 'Blank Labcorp laboratory requisition forms.', 'Labcorp'],
+    ['CRL Lab Requisition Forms', 'CRL-REQ', 'Blank CRL laboratory requisition forms.', 'CRL']
+  ];
+
+  for (const [productName, productCode, description, category] of productCatalog) {
+    await sql`INSERT INTO products (product_name, product_code, description, category, price, stock_quantity, is_available)
+      VALUES (${productName}, ${productCode}, ${description}, ${category}, 0, 9999, true)
+      ON CONFLICT (product_code) DO UPDATE SET
+        product_name = EXCLUDED.product_name,
+        description = EXCLUDED.description,
+        category = EXCLUDED.category,
+        stock_quantity = 9999,
+        is_available = true`;
   }
+
+  await sql`UPDATE products
+    SET is_available = false
+    WHERE product_code IN ('COC-FORM', 'SPEC-CUP', 'TE-BAG', 'URINE-CUP', 'TUBE-GRAY', 'ABSORBENT', 'LABELS')`;
 
   if (adminEmail && adminPassword) {
     const existing = await sql`SELECT id FROM users WHERE lower(email) = lower(${adminEmail}) LIMIT 1`;
@@ -79,7 +111,7 @@ app.get('/data', async (req, res) => {
   try {
     const table = String(req.query.table_name || '');
     if (table === 'products') {
-      const rows = await sql`SELECT * FROM products ORDER BY category, product_name`;
+      const rows = await sql`SELECT * FROM products WHERE is_available = true ORDER BY category, product_name`;
       return res.json(rows.map((p) => ({ ...p, price: n(p.price) })));
     }
     if (table === 'clinics') {
