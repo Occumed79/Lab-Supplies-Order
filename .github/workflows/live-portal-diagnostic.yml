@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - diagnostic/live-portal-check
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
