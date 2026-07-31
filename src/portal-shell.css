@@ -1,0 +1,533 @@
+/* Restored Occu-Med liquid-glass shell shared by the Admin and Clinic portals. */
+
+:root {
+  --lab-shell-width: 244px;
+  --lab-shell-gap: 22px;
+  --lab-shell-offset: calc(var(--lab-shell-width) + (var(--lab-shell-gap) * 2));
+}
+
+body.lab-shell-active {
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 8% 10%, rgba(88, 212, 255, 0.22), transparent 34%),
+    radial-gradient(circle at 82% 18%, rgba(0, 180, 216, 0.2), transparent 30%),
+    radial-gradient(circle at 55% 86%, rgba(3, 4, 94, 0.28), transparent 42%),
+    linear-gradient(135deg, #06155f 0%, #087bb6 47%, #00b7d9 100%) !important;
+  background-attachment: fixed !important;
+}
+
+body.lab-shell-active::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.42;
+  background:
+    linear-gradient(115deg, transparent 0 36%, rgba(255, 255, 255, 0.1) 47%, transparent 58%),
+    radial-gradient(circle at 20% 40%, rgba(255, 255, 255, 0.08), transparent 30%);
+  background-size: 220% 220%, 100% 100%;
+  animation: lab-shell-ambient 16s ease-in-out infinite alternate;
+}
+
+@keyframes lab-shell-ambient {
+  from { background-position: 0% 40%, center; }
+  to { background-position: 100% 60%, center; }
+}
+
+body.lab-shell-active #root {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  transition: padding-left 260ms cubic-bezier(.2, .8, .2, 1);
+}
+
+@media (min-width: 961px) {
+  body.lab-shell-active #root {
+    padding-left: var(--lab-shell-offset);
+  }
+}
+
+.lab-portal-shell {
+  position: fixed;
+  z-index: 80;
+  top: var(--lab-shell-gap);
+  bottom: var(--lab-shell-gap);
+  left: var(--lab-shell-gap);
+  width: var(--lab-shell-width);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  border-radius: 32px;
+  color: #f8fdff;
+  background:
+    linear-gradient(150deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.055) 52%, rgba(1, 22, 75, 0.22)),
+    rgba(3, 24, 80, 0.46);
+  -webkit-backdrop-filter: blur(34px) saturate(175%);
+  backdrop-filter: blur(34px) saturate(175%);
+  box-shadow:
+    0 30px 80px rgba(0, 19, 63, 0.42),
+    0 8px 26px rgba(0, 150, 199, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.08);
+  isolation: isolate;
+}
+
+.lab-portal-shell::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 6px;
+  pointer-events: none;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 26px;
+}
+
+.lab-portal-shell::after {
+  content: '';
+  position: absolute;
+  z-index: -2;
+  top: -22%;
+  left: -48%;
+  width: 220%;
+  height: 44%;
+  transform: rotate(-17deg);
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.18), transparent);
+  filter: blur(8px);
+  animation: lab-shell-sheen 9s ease-in-out infinite;
+}
+
+@keyframes lab-shell-sheen {
+  0%, 26% { transform: translateY(-170%) rotate(-17deg); opacity: 0; }
+  38% { opacity: 0.8; }
+  60%, 100% { transform: translateY(420%) rotate(-17deg); opacity: 0; }
+}
+
+.lab-portal-shell__shine {
+  position: absolute;
+  inset: auto -70px -90px auto;
+  width: 210px;
+  height: 210px;
+  pointer-events: none;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(72, 202, 228, 0.3), transparent 68%);
+  filter: blur(18px);
+}
+
+.lab-portal-shell__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 8px 6px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.13);
+}
+
+.lab-portal-shell__logo-wrap {
+  width: 54px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.08));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 10px 24px rgba(0, 20, 70, 0.22);
+}
+
+.lab-portal-shell__logo {
+  width: 100%;
+  height: auto;
+  filter: brightness(0) invert(1);
+  opacity: 0.96;
+}
+
+.lab-portal-shell__brand strong,
+.lab-portal-shell__brand span {
+  display: block;
+}
+
+.lab-portal-shell__brand strong {
+  font-size: 14px;
+  font-weight: 750;
+  letter-spacing: 0.01em;
+}
+
+.lab-portal-shell__brand span {
+  margin-top: 2px;
+  color: rgba(232, 249, 255, 0.68);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.lab-portal-shell__account {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0 18px;
+  padding: 12px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.035));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.lab-portal-shell__avatar {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  border-radius: 14px;
+  background: linear-gradient(145deg, #6ae5ff, #008dbd 70%, #06378c);
+  box-shadow: 0 8px 18px rgba(0, 174, 216, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.lab-portal-shell__identity {
+  min-width: 0;
+  flex: 1;
+}
+
+.lab-portal-shell__identity strong,
+.lab-portal-shell__identity span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lab-portal-shell__identity strong {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.lab-portal-shell__identity span {
+  margin-top: 3px;
+  color: rgba(232, 249, 255, 0.63);
+  font-size: 9px;
+}
+
+.lab-portal-shell__status {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 999px;
+  background: #31e992;
+  box-shadow: 0 0 12px rgba(49, 233, 146, 0.85);
+}
+
+.lab-portal-shell__section-label {
+  margin: 0 8px 8px;
+  color: rgba(227, 247, 255, 0.48);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.lab-portal-shell__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.lab-portal-shell__nav-item,
+.lab-portal-shell__logout {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  font: inherit;
+}
+
+.lab-portal-shell__nav-item {
+  position: relative;
+  width: 100%;
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: 34px 1fr 14px;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  color: rgba(236, 250, 255, 0.72);
+  text-align: left;
+  background: transparent;
+  transition: transform 180ms ease, color 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+}
+
+.lab-portal-shell__nav-item:hover {
+  transform: translateX(2px);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.lab-portal-shell__nav-item.is-active {
+  color: #fff;
+  border-color: rgba(170, 239, 255, 0.3);
+  background:
+    linear-gradient(135deg, rgba(72, 202, 228, 0.35), rgba(0, 119, 182, 0.38) 54%, rgba(3, 4, 94, 0.3));
+  box-shadow:
+    0 12px 24px rgba(0, 57, 113, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 0 20px rgba(72, 202, 228, 0.12);
+}
+
+.lab-portal-shell__nav-item.is-active::before {
+  content: '';
+  position: absolute;
+  top: 11px;
+  bottom: 11px;
+  left: 0;
+  width: 3px;
+  border-radius: 999px;
+  background: #7deaff;
+  box-shadow: 0 0 12px rgba(125, 234, 255, 0.9);
+}
+
+.lab-portal-shell__nav-icon {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.055);
+  font-size: 13px;
+}
+
+.lab-portal-shell__nav-item > span:nth-child(2) {
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.lab-portal-shell__nav-arrow {
+  justify-self: end;
+  color: rgba(230, 249, 255, 0.36);
+  font-size: 8px;
+}
+
+.lab-portal-shell__footer {
+  margin-top: auto;
+  padding-top: 15px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.lab-portal-shell__secure {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 5px 10px;
+  color: rgba(230, 249, 255, 0.48);
+  font-size: 9px;
+}
+
+.lab-portal-shell__secure i {
+  color: #7deaff;
+}
+
+.lab-portal-shell__logout {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 1px solid rgba(255, 128, 145, 0.15);
+  border-radius: 15px;
+  color: #ffdbe1;
+  background: rgba(223, 48, 75, 0.08);
+  font-size: 11px;
+  font-weight: 650;
+  transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
+}
+
+.lab-portal-shell__logout:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 128, 145, 0.32);
+  background: rgba(223, 48, 75, 0.16);
+}
+
+.lab-portal-shell__toggle {
+  position: fixed;
+  z-index: 92;
+  top: 16px;
+  left: 16px;
+  width: 46px;
+  height: 46px;
+  display: none;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 15px;
+  color: #fff;
+  background: rgba(3, 35, 93, 0.58);
+  -webkit-backdrop-filter: blur(24px) saturate(170%);
+  backdrop-filter: blur(24px) saturate(170%);
+  box-shadow: 0 12px 30px rgba(0, 23, 72, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.24);
+}
+
+.lab-portal-shell__scrim {
+  position: fixed;
+  z-index: 76;
+  inset: 0;
+  display: none;
+  border: 0;
+  background: rgba(0, 12, 45, 0.48);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+/* Convert the old full-width route header into a floating glass header inside the workspace. */
+body.lab-shell-active #root nav.sticky {
+  top: 20px;
+  margin: 0 22px 26px;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  border-radius: 24px !important;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.17), rgba(255, 255, 255, 0.055)),
+    rgba(4, 39, 94, 0.28) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(165%) !important;
+  backdrop-filter: blur(28px) saturate(165%) !important;
+  box-shadow:
+    0 18px 46px rgba(0, 25, 75, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+}
+
+body.lab-shell-active #root main {
+  position: relative;
+}
+
+body.lab-shell-active #root .glass-panel,
+body.lab-shell-active #root .glass-panel-strong {
+  border-color: rgba(255, 255, 255, 0.2);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.055)),
+    rgba(7, 59, 112, 0.16);
+  -webkit-backdrop-filter: blur(28px) saturate(155%);
+  backdrop-filter: blur(28px) saturate(155%);
+  box-shadow:
+    0 22px 55px rgba(0, 27, 78, 0.2),
+    0 5px 18px rgba(0, 116, 166, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+}
+
+body.lab-shell-active #root .glass-input {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+body.lab-shell-active #root .glass-input:focus {
+  background: rgba(255, 255, 255, 0.17);
+  box-shadow: 0 0 0 3px rgba(72, 202, 228, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+/* Make the uploaded lab-supply pictures the focal point of the ordering portal. */
+body.lab-route-order #root main .grid > .glass-panel {
+  position: relative;
+  overflow: hidden;
+  min-height: 390px;
+  border-radius: 26px;
+  transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+}
+
+body.lab-route-order #root main .grid > .glass-panel:hover {
+  transform: translateY(-5px);
+  border-color: rgba(137, 232, 255, 0.36);
+  box-shadow:
+    0 30px 68px rgba(0, 27, 78, 0.28),
+    0 0 28px rgba(72, 202, 228, 0.13),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24);
+}
+
+body.lab-route-order #root main .grid > .glass-panel img {
+  filter: drop-shadow(0 16px 22px rgba(0, 33, 82, 0.28));
+  transition: transform 260ms ease;
+}
+
+body.lab-route-order #root main .grid > .glass-panel:hover img {
+  transform: scale(1.035);
+}
+
+/* Remove the old third-party builder badge from the production portals. */
+#branding-badge,
+#branding-tooltip {
+  display: none !important;
+}
+
+@media (max-width: 960px) {
+  body.lab-shell-active #root {
+    padding-left: 0;
+    padding-top: 68px;
+  }
+
+  .lab-portal-shell {
+    top: 12px;
+    bottom: 12px;
+    left: 12px;
+    width: min(84vw, 310px);
+    transform: translateX(calc(-100% - 30px));
+    transition: transform 260ms cubic-bezier(.2, .8, .2, 1);
+  }
+
+  body.lab-shell-open .lab-portal-shell {
+    transform: translateX(0);
+  }
+
+  .lab-portal-shell__toggle {
+    display: grid;
+  }
+
+  body.lab-shell-open .lab-portal-shell__scrim {
+    display: block;
+  }
+
+  body.lab-shell-active #root nav.sticky {
+    top: 12px;
+    margin: 0 12px 20px 72px;
+  }
+}
+
+@media (max-width: 560px) {
+  body.lab-shell-active #root nav.sticky {
+    min-height: 52px;
+    margin-right: 10px;
+    padding: 10px 12px;
+    border-radius: 18px !important;
+  }
+
+  body.lab-shell-active #root nav.sticky h1 {
+    font-size: 1rem;
+  }
+
+  body.lab-route-order #root main .grid > .glass-panel {
+    min-height: 360px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lab-portal-shell::after,
+  body.lab-shell-active::after {
+    animation: none;
+  }
+
+  .lab-portal-shell,
+  .lab-portal-shell__nav-item,
+  body.lab-shell-active #root {
+    transition: none;
+  }
+}
