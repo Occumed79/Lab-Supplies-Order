@@ -163,14 +163,18 @@ app.post('/auth/forgot-password', async (req, res) => {
       const requestOrigin = String(req.headers.origin || '').replace(/\/$/, '');
       const resetBaseUrl = allowedOrigins.has(requestOrigin) ? requestOrigin : publicFrontendUrl;
       const resetUrl = `${resetBaseUrl}/reset-password?token=${encodeURIComponent(token)}`;
-      const result = await sendPlainEmail({
-        to: user.email,
-        subject: 'Reset your OCCU-MED Lab Supply Portal password',
-        text: `Use the link below within 30 minutes to set a new password:\n\n${resetUrl}\n\nIf you did not request this reset, you can ignore this message.`
-      });
 
-      if (result?.skipped) {
-        return res.status(503).json({ error: 'Password reset email is not configured on the server yet.' });
+      try {
+        const result = await sendPlainEmail({
+          to: user.email,
+          subject: 'Reset your OCCU-MED Lab Supply Portal password',
+          text: `Use the link below within 30 minutes to set a new password:\n\n${resetUrl}\n\nIf you did not request this reset, you can ignore this message.`
+        });
+        if (result?.skipped) {
+          console.error('Password reset email skipped because SMTP is not configured.');
+        }
+      } catch (mailError) {
+        console.error('Failed to send password reset email:', mailError);
       }
     }
 
