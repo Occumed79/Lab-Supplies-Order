@@ -1,0 +1,1 @@
+Validate the restored liquid-glass Admin and Clinic portal shell before production merge.
