@@ -1,0 +1,55 @@
+name: Live Portal Diagnostic
+
+on:
+  push:
+    branches:
+      - diagnostic/live-portal-check
+  workflow_dispatch:
+
+jobs:
+  check-live-services:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Check API health
+        run: |
+          set -euo pipefail
+          curl --fail --show-error --silent --location --max-time 180 \
+            -D /tmp/api-health-headers.txt \
+            -o /tmp/api-health-body.txt \
+            https://lab-supplies-order-api.onrender.com/health
+          echo '--- API health headers ---'
+          cat /tmp/api-health-headers.txt
+          echo '--- API health body ---'
+          cat /tmp/api-health-body.txt
+
+      - name: Check portal CORS preflight
+        run: |
+          set -euo pipefail
+          curl --show-error --silent --max-time 180 \
+            -X OPTIONS \
+            -H 'Origin: https://occu-med-lab-supplies-clinic.onrender.com' \
+            -H 'Access-Control-Request-Method: POST' \
+            -H 'Access-Control-Request-Headers: content-type' \
+            -D /tmp/cors-headers.txt \
+            -o /tmp/cors-body.txt \
+            https://lab-supplies-order-api.onrender.com/data/login
+          echo '--- CORS headers ---'
+          cat /tmp/cors-headers.txt
+          echo '--- CORS body ---'
+          cat /tmp/cors-body.txt
+
+      - name: Check reset page deployment
+        run: |
+          set -euo pipefail
+          curl --fail --show-error --silent --location --max-time 180 \
+            -D /tmp/reset-page-headers.txt \
+            -o /tmp/reset-page-body.txt \
+            'https://occu-med-lab-supplies-clinic.onrender.com/reset-password?token=diagnostic'
+          echo '--- Reset page headers ---'
+          cat /tmp/reset-page-headers.txt
+          echo '--- Reset page markers ---'
+          grep -Eo 'Set a New Password|Welcome Back|OCCU-MED|Lab Supply Portal' /tmp/reset-page-body.txt | head -20 || true
+          echo '--- Reset page first 500 bytes ---'
+          head -c 500 /tmp/reset-page-body.txt
+          echo
