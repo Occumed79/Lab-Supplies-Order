@@ -25,6 +25,7 @@ const sql = neon(databaseUrl);
 const allowedOrigins = new Set([
   ...frontendOrigin.split(',').map((value) => value.trim().replace(/\/$/, '')).filter(Boolean),
   publicFrontendUrl,
+  'https://occu-med-lab-supplies.onrender.com',
   'https://occu-med-lab-supplies-clinic.onrender.com',
   'https://lab-supplies-order.onrender.com'
 ]);
