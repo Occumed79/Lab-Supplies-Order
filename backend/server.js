@@ -1,14 +1,17 @@
 import 'dotenv/config';
+import crypto from 'node:crypto';
 import express from 'express';
 import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import { neon } from '@neondatabase/serverless';
 import { v4 as uuidv4 } from 'uuid';
+import { sendPlainEmail } from './mailer.js';
 
 const app = express();
 const port = process.env.PORT || 10000;
 const databaseUrl = process.env.DATABASE_URL;
-const frontendOrigin = process.env.FRONTEND_ORIGIN || '*';
+const frontendOrigin = process.env.FRONTEND_ORIGIN || '';
+const publicFrontendUrl = (process.env.PUBLIC_FRONTEND_URL || 'https://occu-med-lab-supplies-clinic.onrender.com').replace(/\/$/, '');
 const adminEmail = process.env.ADMIN_EMAIL || '';
 const adminPassword = process.env.ADMIN_PASSWORD || '';
 
@@ -19,10 +22,38 @@ if (!databaseUrl) {
 
 const sql = neon(databaseUrl);
 
+const allowedOrigins = new Set([
+  ...frontendOrigin.split(',').map((value) => value.trim().replace(/\/$/, '')).filter(Boolean),
+  publicFrontendUrl,
+  'https://occu-med-lab-supplies-clinic.onrender.com',
+  'https://lab-supplies-order.onrender.com'
+]);
+
 app.use(express.json({ limit: '1mb' }));
-app.use(cors({ origin: frontendOrigin === '*' ? true : frontendOrigin }));
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.has('*') || allowedOrigins.has(origin) || /^https?:\/\/localhost(?::\d+)?$/.test(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`Origin not allowed by CORS: ${origin}`));
+  }
+}));
 
 const n = (value) => Number.isFinite(Number(value)) ? Number(value) : 0;
+const tokenHash = (token) => crypto.createHash('sha256').update(token).digest('hex');
+
+function normalizeRole(role) {
+  return role === 'clinic_user' ? 'clinic' : role;
+}
+
+function validNewPassword(password) {
+  return typeof password === 'string'
+    && password.length >= 8
+    && /[A-Z]/.test(password)
+    && /[a-z]/.test(password)
+    && /\d/.test(password)
+    && /[^A-Za-z0-9]/.test(password);
+}
 
 function normalizeOrder(row) {
   return {
@@ -41,6 +72,9 @@ async function initDb() {
   await sql`CREATE TABLE IF NOT EXISTS products (id uuid PRIMARY KEY DEFAULT uuid_generate_v4(), product_name text NOT NULL, product_code text NOT NULL UNIQUE, description text, category text NOT NULL DEFAULT 'General', price numeric(10,2) NOT NULL DEFAULT 0, stock_quantity integer NOT NULL DEFAULT 0, is_available boolean NOT NULL DEFAULT true, created_at timestamptz NOT NULL DEFAULT now())`;
   await sql`CREATE TABLE IF NOT EXISTS orders (id uuid PRIMARY KEY DEFAULT uuid_generate_v4(), clinic_id uuid REFERENCES clinics(id) ON DELETE SET NULL, order_number text NOT NULL UNIQUE, order_status text NOT NULL DEFAULT 'Pending', delivery_address text, delivery_city text, delivery_state text, delivery_zip text, delivery_method text, special_instructions text, subtotal numeric(10,2) NOT NULL DEFAULT 0, shipping_cost numeric(10,2) NOT NULL DEFAULT 0, total_cost numeric(10,2) NOT NULL DEFAULT 0, estimated_delivery_date date, order_items jsonb NOT NULL DEFAULT '[]'::jsonb, created_at timestamptz NOT NULL DEFAULT now())`;
   await sql`CREATE TABLE IF NOT EXISTS invitations (id uuid PRIMARY KEY DEFAULT uuid_generate_v4(), admin_user_id uuid REFERENCES users(id) ON DELETE SET NULL, clinic_email text NOT NULL, clinic_name text NOT NULL, invitation_message text, invitation_status text NOT NULL DEFAULT 'Sent', token text UNIQUE NOT NULL, sent_at timestamptz NOT NULL DEFAULT now(), accepted_at timestamptz)`;
+  await sql`CREATE TABLE IF NOT EXISTS password_reset_tokens (id uuid PRIMARY KEY DEFAULT uuid_generate_v4(), user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE, token_hash text UNIQUE NOT NULL, expires_at timestamptz NOT NULL, used_at timestamptz, created_at timestamptz NOT NULL DEFAULT now())`;
+  await sql`CREATE INDEX IF NOT EXISTS password_reset_tokens_user_id_idx ON password_reset_tokens (user_id)`;
+  await sql`CREATE INDEX IF NOT EXISTS password_reset_tokens_expires_at_idx ON password_reset_tokens (expires_at)`;
 
   const productCatalog = [
     ['Labcorp Clinical Collection Kit', 'LABCORP-KIT', 'Complete Labcorp clinical collection kit.', 'Collection Kits'],
@@ -79,6 +113,9 @@ async function initDb() {
     SET is_available = false
     WHERE product_code IN ('COC-FORM', 'SPEC-CUP', 'TE-BAG', 'URINE-CUP', 'TUBE-GRAY', 'ABSORBENT', 'LABELS')`;
 
+  await sql`UPDATE users SET role = 'clinic' WHERE role = 'clinic_user'`;
+  await sql`DELETE FROM password_reset_tokens WHERE expires_at < now() - interval '1 day' OR used_at IS NOT NULL`;
+
   if (adminEmail && adminPassword) {
     const existing = await sql`SELECT id FROM users WHERE lower(email) = lower(${adminEmail}) LIMIT 1`;
     if (existing.length === 0) {
@@ -100,10 +137,79 @@ app.post('/data/login', async (req, res) => {
     if (!user) return res.status(401).json({ error: 'Invalid credentials' });
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
-    return res.json({ id: user.id, email: user.email, provider: user.provider, role: user.role });
+    return res.json({ id: user.id, email: user.email, provider: user.provider, role: normalizeRole(user.role) });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+app.post('/auth/forgot-password', async (req, res) => {
+  try {
+    const email = String(req.body?.email || '').trim();
+    if (!email) return res.status(400).json({ error: 'Email is required.' });
+
+    const rows = await sql`SELECT id, email FROM users WHERE lower(email) = lower(${email}) LIMIT 1`;
+    const user = rows[0];
+
+    if (user) {
+      await sql`UPDATE password_reset_tokens SET used_at = now() WHERE user_id = ${user.id} AND used_at IS NULL`;
+
+      const token = crypto.randomBytes(32).toString('hex');
+      const hash = tokenHash(token);
+      const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+      await sql`INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES (${user.id}, ${hash}, ${expiresAt})`;
+
+      const requestOrigin = String(req.headers.origin || '').replace(/\/$/, '');
+      const resetBaseUrl = allowedOrigins.has(requestOrigin) ? requestOrigin : publicFrontendUrl;
+      const resetUrl = `${resetBaseUrl}/reset-password?token=${encodeURIComponent(token)}`;
+
+      try {
+        const result = await sendPlainEmail({
+          to: user.email,
+          subject: 'Reset your OCCU-MED Lab Supply Portal password',
+          text: `Use the link below within 30 minutes to set a new password:\n\n${resetUrl}\n\nIf you did not request this reset, you can ignore this message.`
+        });
+        if (result?.skipped) {
+          console.error('Password reset email skipped because SMTP is not configured.');
+        }
+      } catch (mailError) {
+        console.error('Failed to send password reset email:', mailError);
+      }
+    }
+
+    return res.json({ message: 'If an account exists for that email, a reset link has been sent.' });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Could not start the password reset.' });
+  }
+});
+
+app.post('/auth/reset-password', async (req, res) => {
+  try {
+    const token = String(req.body?.token || '');
+    const newPassword = String(req.body?.password || '');
+    if (!token) return res.status(400).json({ error: 'Reset token is required.' });
+    if (!validNewPassword(newPassword)) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters and include uppercase, lowercase, a number, and a special character.' });
+    }
+
+    const hash = tokenHash(token);
+    const rows = await sql`SELECT id, user_id FROM password_reset_tokens WHERE token_hash = ${hash} AND used_at IS NULL AND expires_at > now() LIMIT 1`;
+    const reset = rows[0];
+    if (!reset) return res.status(400).json({ error: 'This reset link is invalid or has expired.' });
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await sql.transaction([
+      sql`UPDATE users SET password_hash = ${passwordHash} WHERE id = ${reset.user_id}`,
+      sql`UPDATE password_reset_tokens SET used_at = now() WHERE id = ${reset.id}`,
+      sql`UPDATE password_reset_tokens SET used_at = now() WHERE user_id = ${reset.user_id} AND used_at IS NULL`
+    ]);
+
+    return res.json({ message: 'Password updated successfully. You can now sign in.' });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Could not reset the password.' });
   }
 });
 
@@ -137,7 +243,7 @@ app.post('/data', async (req, res) => {
     if (table === 'users') {
       if (!data.email || !data.password) return res.status(400).json({ error: 'Email and password are required.' });
       const hash = await bcrypt.hash(data.password, 12);
-      const rows = await sql`INSERT INTO users (email, password_hash, provider, role) VALUES (${data.email}, ${hash}, ${data.provider || 'email'}, ${data.role || 'clinic'}) RETURNING id, email, provider, role`;
+      const rows = await sql`INSERT INTO users (email, password_hash, provider, role) VALUES (${data.email}, ${hash}, ${data.provider || 'email'}, ${normalizeRole(data.role || 'clinic')}) RETURNING id, email, provider, role`;
       return res.json(rows[0]);
     }
     if (table === 'clinics') {
