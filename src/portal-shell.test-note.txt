@@ -1,1 +1,0 @@
-Build validation covers the restored floating glass navigation and existing image-backed supply cards.
