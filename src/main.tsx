@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App.tsx'
 import './index.css'
 import './portal-theme-overrides.css'
+import './clinic-order-enhancements'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
