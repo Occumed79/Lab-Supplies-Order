@@ -9,22 +9,31 @@
   },
   "scripts": {
     "dev": "node scripts/configure-api-base.mjs && vite",
-    "build": "node scripts/configure-api-base.mjs && vite build",
-    "build:render": "npm run build",
+    "check": "node --check scripts/serve-dist.mjs && node --check backend/server.js && node --check backend/mailer.js",
+    "build": "VITE_API_BASE_URL=${VITE_API_BASE_URL:-https://occu-med-lab-supplies.onrender.com} node scripts/configure-api-base.mjs && vite build",
+    "build:render": "npm run check && npm run build",
     "start": "node scripts/serve-dist.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@neondatabase/serverless": "1.0.2",
     "@types/react": "18.2.43",
     "@types/react-dom": "18.2.17",
     "@vitejs/plugin-react": "4.2.1",
     "autoprefixer": "10.4.16",
+    "bcryptjs": "2.4.3",
+    "cors": "2.8.5",
+    "dotenv": "16.4.7",
+    "express": "4.21.2",
+    "jsonwebtoken": "9.0.2",
+    "nodemailer": "6.9.16",
     "postcss": "8.4.32",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "react-router-dom": "6.20.0",
     "tailwindcss": "3.3.6",
     "typescript": "5.3.3",
+    "uuid": "11.0.5",
     "vite": "5.4.21"
   }
 }
