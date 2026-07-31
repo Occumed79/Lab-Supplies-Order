@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - agent/build-lab-portal-mvp
+      - fix/two-current-portals-full-stack
   pull_request:
     branches:
       - main
