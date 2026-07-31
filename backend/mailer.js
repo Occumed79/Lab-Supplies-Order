@@ -7,9 +7,9 @@ const smtpSecure = String(process.env.SMTP_SECURE || '').toLowerCase() === 'true
 const smtpUser = process.env.SMTP_USER || '';
 const smtpPass = process.env.SMTP_PASS || '';
 
-const canSendMail = Boolean(mailFrom && smtpHost && smtpUser && smtpPass);
+export const emailDeliveryConfigured = Boolean(mailFrom && smtpHost && smtpUser && smtpPass);
 
-const transporter = canSendMail
+const transporter = emailDeliveryConfigured
   ? nodemailer.createTransport({
       host: smtpHost,
       port: smtpPort,
@@ -23,14 +23,24 @@ const transporter = canSendMail
 
 export async function sendPlainEmail({ to, subject, text }) {
   if (!transporter || !to) {
-    console.log('Email skipped:', subject);
-    return { skipped: true };
+    console.warn('Email delivery skipped because SMTP is not configured:', subject);
+    return {
+      skipped: true,
+      reason: !to ? 'missing_recipient' : 'smtp_not_configured',
+    };
   }
 
-  return transporter.sendMail({
+  const info = await transporter.sendMail({
     from: mailFrom,
     to,
     subject,
     text,
   });
+
+  return {
+    skipped: false,
+    messageId: info.messageId,
+    accepted: info.accepted,
+    rejected: info.rejected,
+  };
 }
