@@ -44,4 +44,4 @@ jobs:
           VITE_CLINIC_APP_URL: https://lab-supplies-order.onrender.com
 
       - name: Check backend syntax
-        run: node --check backend/server.js && node --check backend/catalog-launcher.js
+        run: node --check backend/server.js && node --check backend/catalog-launcher.js && node --check backend/startup.js
