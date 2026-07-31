@@ -1,7 +1,5 @@
-// Render has used both `npm start` and this direct start path for the two portal services.
-// Route both configurations into the same full-stack launcher so the UI and API always
-// run together. Do not pass ADMIN_PASSWORD into the runtime initializer: an existing
-// administrator's database password must survive deploys and service restarts.
-delete process.env.ADMIN_PASSWORD;
-
-await import('../backend/catalog-launcher.js');
+// Render has used both `npm start` and the backend package start command for the two
+// portal services. Route both configurations through the same full-stack startup path.
+// The startup module performs one controlled Admin password synchronization from the
+// current Render environment, then records it so later deploys do not overwrite it.
+await import('../backend/startup.js');
