@@ -33,7 +33,6 @@ const productCatalog = [
   ['TUBE-TIGER', 'Tiger-Top SST Tubes', 'Tiger-top serum separator tubes.', 'Collection Tubes', 'Box', 80],
   ['TUBE-SST', 'Gold-Top SST Tubes', 'Gold-top serum separator tubes for chemistry and serology testing.', 'Collection Tubes', 'Box', 90],
   ['TUBE-TRACE', 'Royal-Blue Trace-Element Tubes', 'Royal-blue tubes for trace-element collections.', 'Collection Tubes', 'Box', 100],
-  ['EXEMPT-BOX', 'Exempt Human Specimen Box', 'Compliant outer box for exempt human specimen shipments.', 'Shipping', 'Each', 110],
   ['FEDEX-LABEL', 'FedEx Shipping Labels', 'FedEx labels for clinical specimen shipments.', 'Shipping', 'Pack', 120],
   ['BIO-BAG', 'Biohazard Specimen Bags', 'Leak-resistant specimen transport bags with document pouch.', 'Shipping', 'Pack', 130],
   ['LABCORP-CUP', 'Labcorp Split Urine Cups', 'Split urine collection cups for Labcorp drug-screen specimens.', 'Labcorp', 'Case', 140],
@@ -112,25 +111,25 @@ async function synchronizeCatalog() {
       WHERE p.product_code IN (
         'LABCORP-KIT', 'CRL-KIT', 'SHIP-PAK', 'TUBE-HEPARIN',
         'TUBE-EDTA', 'TUBE-RED', 'TUBE-CITRATE', 'TUBE-TIGER',
-        'TUBE-SST', 'TUBE-TRACE', 'EXEMPT-BOX', 'FEDEX-LABEL',
-        'BIO-BAG', 'LABCORP-CUP', 'CRL-CUP', 'LABCORP-CCF',
-        'CRL-CCF', 'LABCORP-REQ', 'CRL-REQ'
+        'TUBE-SST', 'TUBE-TRACE', 'FEDEX-LABEL', 'BIO-BAG',
+        'LABCORP-CUP', 'CRL-CUP', 'LABCORP-CCF', 'CRL-CCF',
+        'LABCORP-REQ', 'CRL-REQ'
       )
       ON CONFLICT DO NOTHING`;
 
     await sql`INSERT INTO app_migrations (name) VALUES (${migrationName}) ON CONFLICT DO NOTHING`;
   }
 
-  // These legacy products do not have matching uploaded artwork. Keep their
-  // database rows for historical orders, but remove them from clinic catalogs.
+  // Keep removed product rows for historical orders, but remove them from every
+  // active clinic catalog and prevent the API from returning them as available.
   await sql`DELETE FROM clinic_products cp
     USING products p
     WHERE cp.product_id = p.id
-      AND p.product_code IN ('URINE-CUP', 'TUBE-GRAY', 'ABSORBENT', 'LABELS')`;
+      AND p.product_code IN ('URINE-CUP', 'TUBE-GRAY', 'ABSORBENT', 'LABELS', 'EXEMPT-BOX')`;
 
   await sql`UPDATE products
     SET is_available = false
-    WHERE product_code IN ('URINE-CUP', 'TUBE-GRAY', 'ABSORBENT', 'LABELS')`;
+    WHERE product_code IN ('URINE-CUP', 'TUBE-GRAY', 'ABSORBENT', 'LABELS', 'EXEMPT-BOX')`;
 
   console.log(`Clinic artwork catalog synchronized: ${productCatalog.length} products.`);
 }
