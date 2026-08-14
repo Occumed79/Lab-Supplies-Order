@@ -11,6 +11,7 @@
     "dev": "node scripts/configure-api-base.mjs && vite",
     "build": "node scripts/configure-api-base.mjs && vite build",
     "build:render": "npm run build",
+    "build:renderr": "npm run build:render",
     "preview": "vite preview"
   },
   "dependencies": {
