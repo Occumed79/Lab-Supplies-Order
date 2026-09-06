@@ -1,0 +1,246 @@
+/* Current /login screen — isolated luminous navy liquid-glass treatment.
+   This intentionally targets the legacy AuthScreen markup only so authenticated
+   clinic/admin portal styling cannot regress the credentials screen again. */
+
+.min-h-screen.flex.items-center.justify-center.p-4.bg-gradient-hero.bg-background {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  color: #f7fbff;
+  background:
+    radial-gradient(circle at 18% 20%, rgba(112, 174, 224, .10), transparent 24rem),
+    radial-gradient(circle at 84% 78%, rgba(78, 145, 205, .08), transparent 30rem),
+    linear-gradient(145deg, #01050e 0%, #031126 46%, #071d35 100%) !important;
+}
+
+.min-h-screen.flex.items-center.justify-center.p-4.bg-gradient-hero.bg-background::before,
+.min-h-screen.flex.items-center.justify-center.p-4.bg-gradient-hero.bg-background::after {
+  content: "";
+  position: absolute;
+  inset: -24%;
+  z-index: -2;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.min-h-screen.flex.items-center.justify-center.p-4.bg-gradient-hero.bg-background::before {
+  background:
+    radial-gradient(circle at 22% 28%, rgba(255,255,255,.075), transparent 24%),
+    radial-gradient(circle at 76% 68%, rgba(141,198,239,.075), transparent 29%);
+  filter: blur(72px);
+  opacity: .68;
+  animation: login-navy-drift 28s ease-in-out infinite alternate;
+}
+
+.min-h-screen.flex.items-center.justify-center.p-4.bg-gradient-hero.bg-background::after {
+  z-index: -1;
+  background:
+    radial-gradient(ellipse at 76% 24%, rgba(255,255,255,.045), transparent 23%),
+    radial-gradient(ellipse at 26% 82%, rgba(90,167,225,.05), transparent 27%);
+  filter: blur(86px);
+  opacity: .52;
+  animation: login-navy-drift-reverse 36s ease-in-out infinite alternate;
+}
+
+.min-h-screen.flex.items-center.justify-center.p-4.bg-gradient-hero.bg-background
+> .glass-panel.rounded-card.p-6.w-full.max-w-md.relative.overflow-hidden {
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  color: #f5f9ff !important;
+  background:
+    linear-gradient(145deg, rgba(23, 47, 77, .78), rgba(5, 22, 43, .72)) !important;
+  border: 1px solid rgba(162, 199, 228, .42) !important;
+  box-shadow:
+    0 30px 80px rgba(0, 4, 14, .48),
+    0 0 28px rgba(119, 188, 236, .065),
+    inset 0 0 0 2px rgba(3, 16, 33, .44),
+    inset 0 0 0 3px rgba(174, 210, 237, .20),
+    inset 0 1px 0 rgba(255,255,255,.18) !important;
+  backdrop-filter: blur(30px) saturate(132%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(132%) !important;
+}
+
+.min-h-screen.flex.items-center.justify-center.p-4.bg-gradient-hero.bg-background
+> .glass-panel.rounded-card.p-6.w-full.max-w-md.relative.overflow-hidden::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    linear-gradient(118deg, rgba(255,255,255,.085), transparent 27%, transparent 73%, rgba(137,201,241,.035));
+  opacity: .72;
+}
+
+/* Kill the old bright cyan cap and keep only a fine luminous edge. */
+.min-h-screen.flex.items-center.justify-center.p-4.bg-gradient-hero.bg-background
+> .glass-panel > .absolute.top-0.left-0.w-full.h-2 {
+  height: 1px !important;
+  background: linear-gradient(90deg, transparent 4%, rgba(164,211,244,.55) 42%, rgba(255,255,255,.72) 50%, rgba(126,196,240,.48) 58%, transparent 96%) !important;
+  box-shadow: 0 0 12px rgba(122,193,238,.18);
+}
+
+/* Replace the generic/broken lock tile with a crisp portal wordmark. */
+.min-h-screen.flex.items-center.justify-center.p-4.bg-gradient-hero.bg-background
+.text-center > .w-16.h-16.mx-auto.rounded-2xl {
+  width: 100% !important;
+  height: 64px !important;
+  margin-bottom: 1.25rem !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.min-h-screen.flex.items-center.justify-center.p-4.bg-gradient-hero.bg-background
+.text-center > .w-16.h-16.mx-auto.rounded-2xl > i {
+  display: none !important;
+}
+
+.min-h-screen.flex.items-center.justify-center.p-4.bg-gradient-hero.bg-background
+.text-center > .w-16.h-16.mx-auto.rounded-2xl::before {
+  content: "OCCU-MED";
+  display: block;
+  color: #ffffff;
+  font-size: clamp(1.7rem, 4vw, 2.15rem);
+  font-weight: 800;
+  letter-spacing: .115em;
+  line-height: 1;
+  text-shadow: 0 0 3px rgba(255,255,255,.22);
+}
+
+.min-h-screen.flex.items-center.justify-center.p-4.bg-gradient-hero.bg-background
+.text-center > .w-16.h-16.mx-auto.rounded-2xl::after {
+  content: "LAB SUPPLY PORTAL";
+  display: block;
+  margin-top: .55rem;
+  color: rgba(215,231,246,.58);
+  font-size: .62rem;
+  font-weight: 700;
+  letter-spacing: .24em;
+}
+
+.min-h-screen.flex.items-center.justify-center.p-4.bg-gradient-hero.bg-background h2,
+.min-h-screen.flex.items-center.justify-center.p-4.bg-gradient-hero.bg-background label {
+  color: #f8fbff !important;
+}
+
+.min-h-screen.flex.items-center.justify-center.p-4.bg-gradient-hero.bg-background .text-muted-foreground {
+  color: rgba(216,230,244,.66) !important;
+}
+
+/* Clinic/Admin segmented control: liquid glass, not a white pill on pale blue. */
+.min-h-screen.flex.items-center.justify-center.p-4.bg-gradient-hero.bg-background
+.flex.p-1.bg-surface\/50.rounded-xl {
+  background: rgba(2, 15, 31, .34) !important;
+  border: 1px solid rgba(158, 196, 226, .24) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.07),
+    inset 0 0 0 1px rgba(0,8,20,.26);
+  backdrop-filter: blur(18px) saturate(125%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(125%) !important;
+}
+
+.min-h-screen.flex.items-center.justify-center.p-4.bg-gradient-hero.bg-background
+.flex.p-1.bg-surface\/50.rounded-xl button {
+  color: rgba(218,231,244,.67) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 1px solid transparent;
+}
+
+.min-h-screen.flex.items-center.justify-center.p-4.bg-gradient-hero.bg-background
+.flex.p-1.bg-surface\/50.rounded-xl button.bg-white {
+  color: #ffffff !important;
+  background: linear-gradient(145deg, rgba(86,119,153,.25), rgba(29,58,91,.42)) !important;
+  border-color: rgba(180,211,235,.34) !important;
+  box-shadow:
+    0 5px 16px rgba(0,4,14,.20),
+    inset 0 0 0 1px rgba(2,16,33,.32),
+    inset 0 1px 0 rgba(255,255,255,.12) !important;
+}
+
+/* Dark translucent credentials fields with crisp focus luminosity. */
+.min-h-screen.flex.items-center.justify-center.p-4.bg-gradient-hero.bg-background .glass-input {
+  min-height: 50px;
+  color: #f8fbff !important;
+  background: rgba(2, 15, 31, .40) !important;
+  border: 1px solid rgba(158, 196, 226, .28) !important;
+  box-shadow:
+    inset 0 1px 2px rgba(0,0,0,.20),
+    inset 0 1px 0 rgba(255,255,255,.055),
+    0 0 0 1px rgba(0,8,20,.12) !important;
+  backdrop-filter: blur(14px) saturate(120%);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
+}
+
+.min-h-screen.flex.items-center.justify-center.p-4.bg-gradient-hero.bg-background .glass-input::placeholder {
+  color: rgba(202,219,235,.40) !important;
+}
+
+.min-h-screen.flex.items-center.justify-center.p-4.bg-gradient-hero.bg-background .glass-input:focus {
+  border-color: rgba(202,226,245,.62) !important;
+  background: rgba(5, 22, 43, .56) !important;
+  box-shadow:
+    0 0 0 2px rgba(158,205,239,.10),
+    0 0 22px rgba(122,190,236,.10),
+    inset 0 1px 0 rgba(255,255,255,.08) !important;
+}
+
+.min-h-screen.flex.items-center.justify-center.p-4.bg-gradient-hero.bg-background form i,
+.min-h-screen.flex.items-center.justify-center.p-4.bg-gradient-hero.bg-background button.text-primary {
+  color: rgba(185,216,239,.72) !important;
+}
+
+.min-h-screen.flex.items-center.justify-center.p-4.bg-gradient-hero.bg-background .glass-button-primary {
+  min-height: 50px;
+  color: #fff !important;
+  background: linear-gradient(135deg, #153a60 0%, #071b32 100%) !important;
+  border: 1px solid rgba(180,211,235,.36) !important;
+  box-shadow:
+    0 12px 28px rgba(0,5,16,.30),
+    inset 0 0 0 1px rgba(2,15,31,.34),
+    inset 0 1px 0 rgba(255,255,255,.13) !important;
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+
+.min-h-screen.flex.items-center.justify-center.p-4.bg-gradient-hero.bg-background .glass-button-primary:hover:not(:disabled),
+.min-h-screen.flex.items-center.justify-center.p-4.bg-gradient-hero.bg-background .glass-button-primary:focus-visible {
+  transform: translateY(-1px);
+  background: linear-gradient(135deg, #1b466f 0%, #0a2442 100%) !important;
+  border-color: rgba(207,228,244,.62) !important;
+  box-shadow:
+    0 15px 34px rgba(0,5,16,.38),
+    0 0 24px rgba(133,198,239,.12),
+    inset 0 1px 0 rgba(255,255,255,.18) !important;
+}
+
+.min-h-screen.flex.items-center.justify-center.p-4.bg-gradient-hero.bg-background .glass-button-primary:active:not(:disabled) {
+  transform: translateY(0) scale(.996);
+}
+
+.min-h-screen.flex.items-center.justify-center.p-4.bg-gradient-hero.bg-background button.text-primary:hover {
+  color: #ffffff !important;
+}
+
+@keyframes login-navy-drift {
+  0% { transform: translate3d(-4%, -3%, 0) scale(1); opacity: .56; }
+  50% { transform: translate3d(3%, 2%, 0) scale(1.06); opacity: .78; }
+  100% { transform: translate3d(7%, -2%, 0) scale(1.02); opacity: .62; }
+}
+
+@keyframes login-navy-drift-reverse {
+  0% { transform: translate3d(5%, 3%, 0) scale(1.03); }
+  50% { transform: translate3d(-3%, -2%, 0) scale(1.08); }
+  100% { transform: translate3d(-7%, 4%, 0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .min-h-screen.flex.items-center.justify-center.p-4.bg-gradient-hero.bg-background::before,
+  .min-h-screen.flex.items-center.justify-center.p-4.bg-gradient-hero.bg-background::after {
+    animation: none !important;
+  }
+}
