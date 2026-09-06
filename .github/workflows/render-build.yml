@@ -28,3 +28,19 @@ jobs:
 
       - name: Build exactly like Render
         run: npm run build:render
+
+      - name: Smoke test Render runtime
+        run: |
+          PORT=4173 npm start > /tmp/render-runtime.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
+
+          for attempt in {1..20}; do
+            if curl --fail --silent --show-error http://127.0.0.1:4173/ > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+
+          cat /tmp/render-runtime.log
+          exit 1
