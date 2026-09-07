@@ -11,6 +11,7 @@ const databaseUrl = process.env.DATABASE_URL;
 const frontendOrigin = process.env.FRONTEND_ORIGIN || '*';
 const adminEmail = process.env.ADMIN_EMAIL || '';
 const adminPassword = process.env.ADMIN_PASSWORD || '';
+const maxGuideBytes = 12 * 1024 * 1024;
 
 if (!databaseUrl) {
   console.error('Missing DATABASE_URL');
@@ -19,7 +20,7 @@ if (!databaseUrl) {
 
 const sql = neon(databaseUrl);
 
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '18mb' }));
 app.use(cors({ origin: frontendOrigin === '*' ? true : frontendOrigin }));
 
 const n = (value) => Number.isFinite(Number(value)) ? Number(value) : 0;
@@ -34,6 +35,21 @@ function normalizeOrder(row) {
   };
 }
 
+function normalizeGuide(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    category: row.category,
+    file_name: row.file_name,
+    file_size: n(row.file_size),
+    mime_type: row.mime_type || 'application/pdf',
+    is_active: Boolean(row.is_active),
+    created_by: row.created_by || null,
+    created_at: row.created_at,
+    updated_at: row.updated_at
+  };
+}
+
 async function initDb() {
   await sql`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`;
   await sql`CREATE TABLE IF NOT EXISTS users (id uuid PRIMARY KEY DEFAULT uuid_generate_v4(), email text UNIQUE NOT NULL, password_hash text NOT NULL, provider text NOT NULL DEFAULT 'email', role text NOT NULL DEFAULT 'clinic', created_at timestamptz NOT NULL DEFAULT now())`;
@@ -41,6 +57,7 @@ async function initDb() {
   await sql`CREATE TABLE IF NOT EXISTS products (id uuid PRIMARY KEY DEFAULT uuid_generate_v4(), product_name text NOT NULL, product_code text NOT NULL UNIQUE, description text, category text NOT NULL DEFAULT 'General', price numeric(10,2) NOT NULL DEFAULT 0, stock_quantity integer NOT NULL DEFAULT 0, is_available boolean NOT NULL DEFAULT true, created_at timestamptz NOT NULL DEFAULT now())`;
   await sql`CREATE TABLE IF NOT EXISTS orders (id uuid PRIMARY KEY DEFAULT uuid_generate_v4(), clinic_id uuid REFERENCES clinics(id) ON DELETE SET NULL, order_number text NOT NULL UNIQUE, order_status text NOT NULL DEFAULT 'Pending', delivery_address text, delivery_city text, delivery_state text, delivery_zip text, delivery_method text, special_instructions text, subtotal numeric(10,2) NOT NULL DEFAULT 0, shipping_cost numeric(10,2) NOT NULL DEFAULT 0, total_cost numeric(10,2) NOT NULL DEFAULT 0, estimated_delivery_date date, order_items jsonb NOT NULL DEFAULT '[]'::jsonb, created_at timestamptz NOT NULL DEFAULT now())`;
   await sql`CREATE TABLE IF NOT EXISTS invitations (id uuid PRIMARY KEY DEFAULT uuid_generate_v4(), admin_user_id uuid REFERENCES users(id) ON DELETE SET NULL, clinic_email text NOT NULL, clinic_name text NOT NULL, invitation_message text, invitation_status text NOT NULL DEFAULT 'Sent', token text UNIQUE NOT NULL, sent_at timestamptz NOT NULL DEFAULT now(), accepted_at timestamptz)`;
+  await sql`CREATE TABLE IF NOT EXISTS guides (id uuid PRIMARY KEY DEFAULT uuid_generate_v4(), title text NOT NULL, category text NOT NULL, file_name text NOT NULL, mime_type text NOT NULL DEFAULT 'application/pdf', file_size integer NOT NULL DEFAULT 0, pdf_base64 text NOT NULL, is_active boolean NOT NULL DEFAULT true, created_by uuid REFERENCES users(id) ON DELETE SET NULL, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now())`;
 
   const productCatalog = [
     ['Labcorp Clinical Collection Kit', 'LABCORP-KIT', 'Complete Labcorp clinical collection kit.', 'Collection Kits'],
@@ -90,6 +107,82 @@ async function initDb() {
 
 app.get('/health', (_req, res) => res.json({ ok: true, service: 'lab-supplies-order-api' }));
 app.get('/', (_req, res) => res.json({ service: 'lab-supplies-order-api', status: 'running' }));
+
+app.get('/guides', async (_req, res) => {
+  try {
+    const rows = await sql`SELECT id, title, category, file_name, mime_type, file_size, is_active, created_by, created_at, updated_at FROM guides WHERE is_active = true ORDER BY category, title`;
+    return res.json(rows.map(normalizeGuide));
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Guide request failed' });
+  }
+});
+
+app.get('/guides/:id/pdf', async (req, res) => {
+  try {
+    const rows = await sql`SELECT title, file_name, mime_type, pdf_base64, is_active FROM guides WHERE id = ${req.params.id} LIMIT 1`;
+    const guide = rows[0];
+    if (!guide || !guide.is_active) return res.status(404).json({ error: 'Guide not found' });
+
+    const pdf = Buffer.from(guide.pdf_base64 || '', 'base64');
+    if (!pdf.length) return res.status(404).json({ error: 'Guide PDF is unavailable' });
+
+    const safeFileName = String(guide.file_name || `${guide.title || 'guide'}.pdf`).replace(/["\r\n]/g, '_');
+    res.setHeader('Content-Type', guide.mime_type || 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${safeFileName}"`);
+    res.setHeader('Content-Length', pdf.length);
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    return res.send(pdf);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Guide PDF request failed' });
+  }
+});
+
+app.post('/guides', async (req, res) => {
+  try {
+    const { title, category, file_name, pdf_base64, created_by } = req.body || {};
+    const cleanTitle = String(title || '').trim();
+    const cleanCategory = String(category || '').trim();
+    const cleanFileName = String(file_name || '').trim();
+    const cleanBase64 = String(pdf_base64 || '').replace(/^data:application\/pdf;base64,/i, '').trim();
+
+    if (!cleanTitle || !cleanCategory || !cleanFileName || !cleanBase64) {
+      return res.status(400).json({ error: 'Title, guide type, and PDF are required.' });
+    }
+    if (cleanTitle.length > 160 || cleanCategory.length > 100 || cleanFileName.length > 255) {
+      return res.status(400).json({ error: 'Guide metadata is too long.' });
+    }
+
+    const pdf = Buffer.from(cleanBase64, 'base64');
+    if (!pdf.length || pdf.subarray(0, 5).toString('ascii') !== '%PDF-') {
+      return res.status(400).json({ error: 'The uploaded file is not a valid PDF.' });
+    }
+    if (pdf.length > maxGuideBytes) {
+      return res.status(413).json({ error: 'PDFs must be 12 MB or smaller.' });
+    }
+
+    const rows = await sql`INSERT INTO guides (title, category, file_name, mime_type, file_size, pdf_base64, is_active, created_by)
+      VALUES (${cleanTitle}, ${cleanCategory}, ${cleanFileName}, 'application/pdf', ${pdf.length}, ${cleanBase64}, true, ${created_by || null})
+      RETURNING id, title, category, file_name, mime_type, file_size, is_active, created_by, created_at, updated_at`;
+
+    return res.status(201).json(normalizeGuide(rows[0]));
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Guide upload failed' });
+  }
+});
+
+app.delete('/guides/:id', async (req, res) => {
+  try {
+    const rows = await sql`DELETE FROM guides WHERE id = ${req.params.id} RETURNING id`;
+    if (!rows.length) return res.status(404).json({ error: 'Guide not found' });
+    return res.json({ ok: true, id: rows[0].id });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Guide deletion failed' });
+  }
+});
 
 app.post('/data/login', async (req, res) => {
   try {
