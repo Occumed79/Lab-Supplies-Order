@@ -4,8 +4,6 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App.tsx'
 import './index.css'
 import './portal-shell.css'
-import './login-theme.css'
-import './legacy-shell-cleanup.css'
 import './clinic-order-enhancements'
 import './portal-shell'
 
