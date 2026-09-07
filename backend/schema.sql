@@ -65,3 +65,17 @@ CREATE TABLE IF NOT EXISTS invitations (
   sent_at timestamptz NOT NULL DEFAULT now(),
   accepted_at timestamptz
 );
+
+CREATE TABLE IF NOT EXISTS guides (
+  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  title text NOT NULL,
+  category text NOT NULL,
+  file_name text NOT NULL,
+  mime_type text NOT NULL DEFAULT 'application/pdf',
+  file_size integer NOT NULL DEFAULT 0,
+  pdf_base64 text NOT NULL,
+  is_active boolean NOT NULL DEFAULT true,
+  created_by uuid REFERENCES users(id) ON DELETE SET NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
